@@ -89,3 +89,11 @@ Vetted reviewers will always have to answer `an extra review
 question <../server/tutorweb_quizdb/stage/material.py>`_. This allows them to
 signal this material should be added to the main material bank, and
 `award_ugmaterial_accepted <settings.rst>`_ given to the author of the question.
+
+To add a single user to the vetted group::
+
+    ./server/bin/student_import --user lentinj --groups vetted.comp.crypto251.0
+
+To add multiple users::
+
+    echo -e "user1\nuser2\n..." | ./server/bin/student_import --groups vetted.comp.crypto251.0 -
