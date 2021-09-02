@@ -61,26 +61,4 @@ BEGIN
 END
 $do$;
 
--- INTEGER too small for Milli-SMLY amounts
-DO
-$do$
-BEGIN
-    IF NOT EXISTS (SELECT *
-                   FROM information_schema.columns
-                  WHERE table_schema = 'public'
-                    AND table_name = 'answer'
-                    AND column_name = 'coins_awarded'
-                    AND data_type = 'integer') THEN
-        -- Nothing to do, exit.
-        RETURN;
-    END IF;
-
-    -- Have to remove dependent views for this to work
-    DROP VIEW coin_unclaimed;
-    DROP VIEW stage_ugmaterial;
-    ALTER TABLE public.answer ALTER COLUMN coins_awarded TYPE BIGINT;
-END
-$do$;
-
-
 COMMIT;

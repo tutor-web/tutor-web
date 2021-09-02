@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS answer (
 
     correct                  BOOLEAN NULL,
     grade                    NUMERIC(5, 3) NOT NULL,
-    coins_awarded            BIGINT NOT NULL DEFAULT 0,
+    coins_awarded            INTEGER NOT NULL DEFAULT 0,
 
     student_answer           JSONB,
     review                   JSONB
