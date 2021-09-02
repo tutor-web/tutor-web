@@ -481,6 +481,10 @@ question <- function(permutation, data_frames) { return(list(content = 'parp', c
         ])
         self.assertEqual(self.coins_awarded(self.db_studs[1]), AWARD_UGMATERIAL_CORRECT + AWARD_UGMATERIAL_ACCEPTED)
 
+        # The award stays static after being assigned once
+        (out, additions) = sync_answer_queue(get_alloc(self.db_stages[0], self.db_studs[1]), [], 0)
+        self.assertEqual(self.coins_awarded(self.db_studs[1]), AWARD_UGMATERIAL_CORRECT + AWARD_UGMATERIAL_ACCEPTED)
+
         # We can still get student 0's work, after this diversion to student 1
         alloc = get_alloc(self.db_stages[0], self.db_studs[0])
         (out, additions) = sync_answer_queue(alloc, [

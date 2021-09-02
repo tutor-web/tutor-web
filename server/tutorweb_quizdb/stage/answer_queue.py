@@ -106,16 +106,17 @@ def mark_aq_entry_usergenerated(db_a, alloc, ug_reviews):
         pass
     elif db_a.mark > float(alloc.settings.get('ugreview_captrue', 3)):
         db_a.correct = True
-        if db_a.coins_awarded == 0:
-            db_a.coins_awarded = get_award_setting('ugmaterial_correct')
     elif db_a.mark < float(alloc.settings.get('ugreview_capfalse', -1)):
         db_a.correct = False
     else:
         db_a.correct = None
 
-    if vetted_accepted:
-        # Was accepted into main question bank, give major bonus
-        db_a.coins_awarded += get_award_setting('ugmaterial_accepted')
+    db_a.coins_awarded = 0
+    if db_a.correct is True:
+        db_a.coins_awarded += get_award_setting('ugmaterial_correct')
+        if vetted_accepted:
+            # Was accepted into main question bank, give major bonus
+            db_a.coins_awarded += get_award_setting('ugmaterial_accepted')
 
 
 def db_to_incoming(alloc, db_a):
