@@ -12,11 +12,12 @@ VETTED_REVIEW_TEMPLATE = dict(
     title='Vetted Review Mode',
     values=[
         [-48, "This is not a serious submission"],
-        [-36, "I copy and pasted this into Google and found where it came from"],
-        [0, "This should be considered for further review"],
+        [0, "Reasonable solution, but not appropriate for the main question bank"],
+        [12, "This should be modified for further review"],
         [48, "This is good enough to be added to the main question bank"],
     ],
 )
+VETTED_ACCEPT_CUTOFF = 40
 
 
 def material_student_dataframes(ms_arr, student):

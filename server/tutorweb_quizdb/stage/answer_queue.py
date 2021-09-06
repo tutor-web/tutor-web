@@ -8,6 +8,9 @@ from tutorweb_quizdb.student import student_is_vetted
 from tutorweb_quizdb.syllabus import path_to_ltree
 from tutorweb_quizdb.timestamp import timestamp_to_datetime, datetime_to_timestamp
 
+VETTED_ACCEPT_CUTOFF = 40
+
+
 log = logging.getLogger(__name__)
 
 
@@ -82,7 +85,7 @@ def mark_aq_entry_usergenerated(db_a, alloc, ug_reviews):
         for r_type, r_rating in review.items():
             if r_type == 'comments':
                 continue
-            if r_type == 'vetted' and int(r_rating) > 10:
+            if r_type == 'vetted' and int(r_rating) > VETTED_ACCEPT_CUTOFF:
                 vetted_accepted = True
             try:
                 review_total += int(r_rating)
