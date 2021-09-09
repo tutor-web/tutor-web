@@ -50,17 +50,15 @@ def subscription_add(student, path, add_to_group=False):
         student.groups.append(DBSession.query(models.Group).filter_by(id=dbl.requires_group_id).one())
         DBSession.flush()
 
-    # Add subscription
-    try:
-        # Find a subscription with either same path or above it
-        dbs = (DBSession.query(Base.classes.subscription)
-                        .filter_by(user=student)
-                        .join(Base.classes.syllabus)
-                        .filter_by(host_id=ACTIVE_HOST)
-                        .filter(Base.classes.syllabus.path.op("@>")(path))
-                        .one())
-        return dbs
-    except NoResultFound:
+    # Find a subscription with either same path or above it
+    dbs = (DBSession.query(Base.classes.subscription)
+                    .filter_by(user=student)
+                    .join(Base.classes.syllabus)
+                    .filter_by(host_id=ACTIVE_HOST)
+                    .filter(Base.classes.syllabus.path.op("@>")(path))
+                    .first())
+    if dbs is None:
+        # Add subscription
         dbs = Base.classes.subscription(
             user=student,
             syllabus=dbl,
