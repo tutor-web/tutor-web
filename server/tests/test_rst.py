@@ -22,7 +22,7 @@ and they are
 
 .. math::
 
-   x = {-b \pm \sqrt{b^2-4ac} \over 2a}
+   x = {-b \\pm \\sqrt{b^2-4ac} \\over 2a}
         """.strip()), """
 <p>When :math`a
 e 0`, there are two solutions to <span class="math">\\(ax^2 + bx + c = 0\\)</span>

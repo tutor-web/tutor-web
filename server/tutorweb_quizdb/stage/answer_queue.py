@@ -163,7 +163,7 @@ def incoming_to_db(alloc, in_a):
     """Turn wire-format into a DB answer entry"""
     try:
         (mss_id, permutation) = alloc.from_public_id(in_a['uri'])
-    except Exception as e:
+    except Exception:
         # Log exception along with real error
         log.exception("Could not parse question ID %s" % in_a['uri'])
         raise ValueError("Could not parse question ID %s" % in_a['uri'])

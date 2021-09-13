@@ -21,7 +21,7 @@ test: compile
 	./bin/pytest tests/test_*.py
 
 lint: lib/.requirements
-	./bin/flake8 --ignore=E501 tutorweb_quizdb/ tests/
+	./bin/flake8 --ignore=E501,E741,W504 tutorweb_quizdb/ tests/
 
 coverage: compile
 	./bin/coverage run ./bin/py.test tests/
