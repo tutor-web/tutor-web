@@ -23,15 +23,15 @@ Client-side dependencies:
 
 ```
 apt install \
-    make nodejs nodejs-legacy yarn nginx
+    make nodejs nodejs-legacy yarn nginx ssl-cert
 ```
 
 R packages for question bank:
 
 ```
-cat <<EOF | R
-install.packages('jsonlite')
-install.packages('htmltools')
+cat <<EOF | R --vanilla
+install.packages('jsonlite', repos = "https://cloud.r-project.org")
+install.packages('htmltools', repos = "https://cloud.r-project.org")
 EOF
 ```
 
