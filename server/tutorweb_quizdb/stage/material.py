@@ -7,16 +7,17 @@ from .utils import get_current_stage
 from .setting import getStudentSettings
 
 
-VETTED_REVIEW_TEMPLATE = dict(
-    name='vetted',
-    title='Vetted Review Mode',
-    values=[
-        [-48, "This is not a serious submission"],
-        [0, "Reasonable solution, but not appropriate for the main question bank"],
-        [12, "This should be modified for further review"],
-        [48, "This is good enough to be added to the main question bank"],
-    ],
-)
+VETTED_REVIEW_TEMPLATE = [
+    dict(
+        name='vetted', title='Vetted Review Mode',
+        values=[
+            [-48, "This is not a serious submission"],
+            [0, "Reasonable solution, but not appropriate for the main question bank"],
+            [12, "This should be modified for further review"],
+            [48, "This is good enough to be added to the main question bank"],
+        ],
+    ),
+]
 VETTED_ACCEPT_CUTOFF = 40
 
 
@@ -76,7 +77,7 @@ def stage_material(alloc, requested_ids):
         if 'type.template' in ms.material_tags and permutation < 0:
             # It's a user-generated question, add in special review boxes for vetted reviewers
             if student_is_vetted(alloc.db_student, alloc.db_stage):
-                rendered['review_questions'].insert(0, VETTED_REVIEW_TEMPLATE)
+                rendered['review_questions'] = VETTED_REVIEW_TEMPLATE + rendered['review_questions']
 
         out['data'][alloc.to_public_id(ms.material_source_id, permutation)] = rendered
     return out
