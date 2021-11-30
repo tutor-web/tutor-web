@@ -104,6 +104,9 @@ def mark_aq_entry_usergenerated(db_a, alloc, ug_reviews):
     if db_a.review and db_a.review.get('superseded', False):
         # If this is superseded, then make sure it's incorrect to get rid of it
         db_a.correct = False
+    elif vetted_accepted:
+        # A vetter thought this was good enough to accept, so should be correct
+        db_a.correct = True
     elif db_a.correct is not None:
         # Already reached a decision, don't change it
         pass

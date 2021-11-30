@@ -723,3 +723,28 @@ question <- function(permutation, data_frames) { return(list(content = 'parp', c
             user=self.db_studs[0],
             params=dict(path=str(self.db_other_stages[0].syllabus.path)),
         ))['results'], list(result_summary(str(self.db_other_stages[0].syllabus.path))))
+
+        # Student 1 writes a version with new template
+        self.assertEqual(self.coins_awarded(self.db_studs[1]), AWARD_UGMATERIAL_CORRECT * 1 + AWARD_UGMATERIAL_ACCEPTED * 1)
+        (out, additions) = sync_answer_queue(get_alloc(self.db_stages[0], self.db_studs[1]), [
+            aq_dict(uri='template1.t.R:2:1', time_end=3010, correct=None, student_answer=dict(text="My new 3")),
+        ], 0)
+        self.assertEqual(out[-1:], [
+            aq_dict(uri='template1.t.R:2:1', time_end=3010, correct=None, student_answer=dict(text="My new 3")),
+        ])
+        # Student 3 reviews it before anyone else does
+        for i in range(10):  # Do this a few times to cope with random-ness
+            self.assertIn(request_review(get_alloc(self.db_stages[0], self.db_studs[3])), [
+                dict(uri='template1.t.R:1:-9'),
+                dict(uri='template1.t.R:2:-15'),
+                dict(uri='template1.t.R:2:-32'),
+            ])
+        (out, additions) = sync_answer_queue(get_alloc(self.db_stages[0], self.db_studs[3]), [
+            aq_dict(uri='template1.t.R:1:-32', time_end=3131, student_answer=dict(choice="a2"), review=dict(vetted=49, comments="Accepted into question bank before anyone else reviews", content=12, presentation=12)),
+        ], 0)
+
+        # Student 1 gets another major bonus thanks to the vetted review
+        (out, additions) = sync_answer_queue(get_alloc(self.db_stages[0], self.db_studs[1]), [], 0)
+        self.assertEqual(out[-1]['correct'], True)  # Marked as correct already
+        self.assertEqual(out[-1]['ug_reviews'][0]['vetted'], 49)
+        self.assertEqual(self.coins_awarded(self.db_studs[1]), AWARD_UGMATERIAL_CORRECT * 2 + AWARD_UGMATERIAL_ACCEPTED * 2)
