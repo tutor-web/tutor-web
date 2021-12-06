@@ -18,7 +18,8 @@ lib/.requirements: requirements.txt requirements-to-freeze.txt setup.py bin/pip
 compile: lib/.requirements application.ini
 
 test: compile
-	./bin/pytest tests/test_*.py
+	# Quell pytest warnings: https://github.com/pytest-dev/pytest/issues/1403
+	./bin/python -Wignore:::_pytest.assertion.rewrite -m pytest tests/test_*.py
 
 lint: lib/.requirements
 	./bin/flake8 --ignore=E501,E741,W504 tutorweb_quizdb/ tests/
