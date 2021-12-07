@@ -423,9 +423,16 @@ question <- function(permutation, data_frames) { return(list(content = 'parp', c
                 dict(uri='template1.t.R:1:-9'),
                 dict(uri='template1.t.R:2:-15'),
             ])
+            a = get_alloc(self.db_stages[0], self.db_studs[3])
+            a.settings['ugreview_vetted_review_mode'] = 'correct-first'
             self.assertEqual(
-                request_review(get_alloc(self.db_stages[0], self.db_studs[3])),
+                request_review(a),
                 dict(uri='template1.t.R:1:-8'),  # Just :-8 since this one is correct, and do correct ones first
+            )
+            a.settings['ugreview_vetted_review_mode'] = 'correct-only'
+            self.assertEqual(
+                request_review(a),
+                dict(uri='template1.t.R:1:-8'),
             )
 
         # Student 3 gets special question, others don't.
@@ -457,10 +464,14 @@ question <- function(permutation, data_frames) { return(list(content = 'parp', c
                 dict(uri='template1.t.R:1:-9'),
                 dict(uri='template1.t.R:2:-15'),
             ])
-            self.assertIn(request_review(get_alloc(self.db_stages[0], self.db_studs[3])), [
+            a = get_alloc(self.db_stages[0], self.db_studs[3])
+            a.settings['ugreview_vetted_review_mode'] = 'correct-first'
+            self.assertIn(request_review(a), [
                 dict(uri='template1.t.R:1:-9'),
                 dict(uri='template1.t.R:2:-15'),
             ])
+            a.settings['ugreview_vetted_review_mode'] = 'correct-only'
+            self.assertIn(request_review(a), [dict()])
 
         # Student 1 gets a major bonus thanks to the vetted review
         (out, additions) = sync_answer_queue(get_alloc(self.db_stages[0], self.db_studs[1]), [], 0)
@@ -734,11 +745,15 @@ question <- function(permutation, data_frames) { return(list(content = 'parp', c
         ])
         # Student 3 reviews it before anyone else does
         for i in range(10):  # Do this a few times to cope with random-ness
-            self.assertIn(request_review(get_alloc(self.db_stages[0], self.db_studs[3])), [
+            a = get_alloc(self.db_stages[0], self.db_studs[3])
+            a.settings['ugreview_vetted_review_mode'] = 'correct-first'
+            self.assertIn(request_review(a), [
                 dict(uri='template1.t.R:1:-9'),
                 dict(uri='template1.t.R:2:-15'),
                 dict(uri='template1.t.R:2:-32'),
             ])
+            a.settings['ugreview_vetted_review_mode'] = 'correct-only'
+            self.assertIn(request_review(a), [dict()])
         (out, additions) = sync_answer_queue(get_alloc(self.db_stages[0], self.db_studs[3]), [
             aq_dict(uri='template1.t.R:1:-32', time_end=3131, student_answer=dict(choice="a2"), review=dict(vetted=49, comments="Accepted into question bank before anyone else reviews", content=12, presentation=12)),
         ], 0)

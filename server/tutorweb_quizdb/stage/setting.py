@@ -29,6 +29,7 @@ STRING_SETTINGS = set((
     'allocation_encryption_key',
     'iaa_mode',
     'grade_algorithm',
+    'ugreview_vetted_review_mode',
 ))
 SERVERSIDE_SETTINGS = set((
     'allocation_encryption_key',

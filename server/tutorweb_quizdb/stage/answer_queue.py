@@ -301,19 +301,32 @@ def sync_answer_queue(alloc, in_queue, time_offset):
 def request_review(alloc):
     is_vetted = student_is_vetted(alloc.db_student, alloc.db_stage)
 
+    # Choose review mode
+    review_mode = alloc.settings.get('ugreview_vetted_review_mode', 'correct-only') if is_vetted else 'undecided'
+    if review_mode == 'correct-only':  # Only see "correct" material, i.e. material already deemed good by peer reviewers
+        review_mode_where = 'AND correct'
+        review_mode_order = 'JSONB_ARRAY_LENGTH(reviews)'
+    elif review_mode == 'correct-first':  # See "correct" material first, then undecided material
+        review_mode_where = 'AND (correct IS NULL OR correct)'
+        review_mode_order = 'correct, JSONB_ARRAY_LENGTH(reviews)'
+    elif review_mode == 'undecided':  # See only material that don't have a correct/incorrect verdict assigned to them
+        review_mode_where = 'AND correct IS NULL'
+        review_mode_order = 'JSONB_ARRAY_LENGTH(reviews)'
+    else:
+        raise ValueError("Unknown review mode %s" % review_mode)
+
     # Find a question that needs a review
     # Get all questions that we didn't write, ones with least reviews first
     for (stage_id, mss_id, answer_id, reviews) in DBSession.execute(
             """
             SELECT stage_id, material_source_id, answer_id, reviews FROM stage_ugmaterial
              WHERE user_id != :user_id
-               AND (correct IS NULL -- i.e. only ones for which a decision hasn't been reached
-                   """ + ('OR correct' if is_vetted else '') + """) -- Vetted reviewers also see deemed-good questions
+               """ + review_mode_where + """
                AND material_source_id IN (
                 SELECT material_source_id FROM stage_material_sources sms
                  WHERE sms.stage_id = :stage_id
                    AND 'type.template' = ANY(sms.material_tags))
-            ORDER BY """ + ('correct,' if is_vetted else '') + """ JSONB_ARRAY_LENGTH(reviews), RANDOM()
+            ORDER BY """ + review_mode_order + """, RANDOM()
             """, dict(
                 stage_id=alloc.db_stage.stage_id,  # NB: This uses latest stage, since material will be carried over.
                 user_id=alloc.db_student.id,

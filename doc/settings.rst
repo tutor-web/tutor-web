@@ -38,6 +38,11 @@ Grading algorithm:
 
 * ``ugreview_captrue``: The mark above which we consider this material gets a "correct" grade, and we stop reviewing. Default 3
 * ``ugreview_capfalse``: The mark above which we consider this material gets an "incorrect" grade, and we stop reviewing. Default -1
+* ``ugreview_vetted_review_mode``: Which questions a vetted reviewer gets. One of the following. Default 'correct-first'
+
+  * ``correct-first``: Review questions deemed correct (i.e. good) by peer reviewers first
+  * ``correct-only``: Review questions deemed correct (i.e. good) by peer reviewers only
+  * ``undecided``: Questions without enough reviews to deem correct/incorrect, i.e. the review_mode for regular students
 
 Question timeout:
 
