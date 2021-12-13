@@ -21,7 +21,7 @@ iniconfig==1.1.1
 iso8601==0.1.12
 Jinja2==2.11.3
 lti==0.9.5
-lxml==4.6.3
+lxml==4.6.5
 Mako==1.1.2
 MarkupSafe==1.1.1
 mccabe==0.6.1
