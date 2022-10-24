@@ -69,6 +69,9 @@ def stage_index(request):
         settings=clientside_settings(alloc.settings),
         material_tags=alloc.db_stage.material_tags,
         questions=questions,
+        material_uri='/api/stage/material?path=%s' % (
+            request.params['path'],
+        ),
         answerQueue=answer_queue,
         time_offset=time_offset,
     )

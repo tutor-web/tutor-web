@@ -339,12 +339,14 @@ function syncMockSubscriptions(quiz, default_settings) {
             ],
             "settings": default_settings || {},
             "uri": "/api/stage?path=t0.l0.s0",
+            // NB: Made up so we test overriding material_uri
+            "material_uri": "material_uri/t0.l0.s0",
             "path": "t0.l0.s0",
         });
 
-        return quiz.ajaxApi.waitForQueue(["GET /api/stage/material?path=t0.l0.s0 4"]);
+        return quiz.ajaxApi.waitForQueue(["GET material_uri/t0.l0.s0 4"]);
     }).then(function () {
-        quiz.ajaxApi.setResponse("GET /api/stage/material?path=t0.l0.s0", 4, {
+        quiz.ajaxApi.setResponse("GET material_uri/t0.l0.s0", 4, {
             data: test_utils().utQuestions,
             stats: [
                 { initial_answered: 0, initial_correct: 0, chosen: 0, correct: 0, uri: "ut:question0" },
@@ -494,7 +496,7 @@ broken_test('_syncLecture', function (t) {
             ],
             "settings": { "hist_sel": 0 },
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         },
     // No answers yet.
     ], utils.utQuestions).then(function () {
@@ -571,7 +573,7 @@ broken_test('_syncLecture', function (t) {
             "removed_questions": ['ut:question1'],
             "settings": { "any_setting": 0.5 },
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         });
         return aa.waitForQueue(["GET ut:question8 2"]);
 
@@ -644,7 +646,7 @@ broken_test('_syncLecture', function (t) {
             "removed_questions": ['ut:question1'],
             "settings": { "hist_sel": 0 },
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         });
         return ajaxPromise;
 
@@ -679,7 +681,7 @@ broken_test('_syncLecture', function (t) {
             "removed_questions": ['ut:question1'],
             "settings": { "hist_sel": 0 },
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         });
         return ajaxPromise;
     }).then(function (args) {
@@ -710,7 +712,7 @@ broken_test('_syncLecture', function (t) {
                 ],
                 "settings": { "hist_sel": 0 },
                 "uri": "ut:lecture0",
-                "question_uri": "ut:lecture0:all-questions",
+                "material_uri": "ut:lecture0:all-questions",
             });
             return syncPromise;
         });
@@ -740,7 +742,7 @@ broken_test('_syncLecture', function (t) {
             "questions": [],
             "settings": { "hist_sel": 0 },
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         });
         return ajaxPromise.then(function () { t.fail(); }).catch(function (err) {
             var lec = ls.getParsedItem('ut:lecture0');
@@ -764,7 +766,7 @@ broken_test('_syncLecture', function (t) {
             }),
             "settings": { "hist_sel": 0 },
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         });
         return aa.waitForQueue(['GET ut:lecture0:all-questions 8']);
     }).then(function (args) {
@@ -826,7 +828,7 @@ broken_test('_setQuestionAnswer', function (t) {
                 ],
                 "settings": { "hist_sel": 0 },
                 "uri": "ut:lecture0",
-                "question_uri": "ut:lecture0:all-questions",
+                "material_uri": "ut:lecture0:all-questions",
             },
         ], {
             "ut:tmplqn0": {
@@ -852,7 +854,7 @@ broken_test('_setQuestionAnswer', function (t) {
                 ],
                 "settings": { "hist_sel": 0 },
                 "uri": "ut:lecture0",
-                "question_uri": "ut:lecture0:all-questions",
+                "material_uri": "ut:lecture0:all-questions",
             },
         ], {
             "ut:ugqn0": {
@@ -1083,7 +1085,7 @@ test('_gradeSummaryStrings', function (t) {
                 "award_tutorial_aced": 10960, // NB: these values are mSMLY, need rounding
             },
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         },
     ], utils.utQuestions).then(function (args) {
         return quiz.setCurrentLecture({'lecUri': 'ut:lecture0'});
@@ -1220,7 +1222,7 @@ test('_gradeSummarylastEight', function (t) {
             ],
             "settings": { "hist_sel": 0 },
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         },
     ], utils.utQuestions).then(function (args) {
         return quiz.setCurrentLecture({'lecUri': 'ut:lecture0'});
@@ -1379,7 +1381,7 @@ test('_questionUpdate ', function (t) {
             ],
             "settings": { "hist_sel": 0 },
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         },
     ], utils.utQuestions).then(function (args) {
         return quiz.setCurrentLecture({'lecUri': 'ut:lecture0'});
@@ -1482,21 +1484,21 @@ test('_setCurrentLecture_practiceAllowed', function (t) {
     return insertTutorial(quiz, 'ut:tutorial0', 'UT tutorial', [
         {
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
             "answerQueue": [],
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             // Unlimited practicing
             "settings": { 'practice_after': 0, 'practice_batch': Infinity },
         }, {
             "uri": "ut:lecture1",
-            "question_uri": "ut:lecture1:all-questions",
+            "material_uri": "ut:lecture1:all-questions",
             "answerQueue": [],
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             // Unlimited practicing, once we get to 10 questions
             "settings": { 'practice_after': 5, 'practice_batch': Infinity },
         }, {
             "uri": "ut:lecture2",
-            "question_uri": "ut:lecture2:all-questions",
+            "material_uri": "ut:lecture2:all-questions",
             "answerQueue": [],
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             // 1 practice question per 2 real questions
@@ -1599,7 +1601,7 @@ test('_getNewQuestion', function (t) {
             ],
             "settings": { hist_sel: '0', timeout_std: "2", timeout_min: 3, timeout_max: 10, timeout_grade: 5 },
             "uri": "ut:lecture0",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         },
         {
             "answerQueue": [],
@@ -1608,7 +1610,7 @@ test('_getNewQuestion', function (t) {
             ],
             "settings": { hist_sel: '0', timeout_std: "2", timeout_min: 3, timeout_max: 10, timeout_grade: 5 },
             "uri": "ut:lecture-online",
-            "question_uri": "ut:lecture0:all-questions",
+            "material_uri": "ut:lecture0:all-questions",
         },
     ], utils.utQuestions).then(function () {
         return quiz.setCurrentLecture({'lecUri': 'ut:lecture0'});

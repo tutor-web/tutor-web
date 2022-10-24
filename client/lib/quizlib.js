@@ -687,15 +687,19 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
                     return newLecture;
                 }, opts.ifMissing === 'fetch');
             }).then(function (curLecture) {
+                // Make sure material_uri is populated
+                if (!curLecture.material_uri) {
+                    curLecture.material_uri = '/api/stage/material?path=' + encodeURIComponent(curLecture.path);
+                }
+
                 // Check if either we have no question bank yet, or we have missing questions
                 var missingQns = opts.forceQuestions || curLecture.questions.length === 0 || curLecture.questions.find(function (q) {
                     return (self.ls.getItem(q.uri) === null);
                 });
 
                 if (missingQns) {
-                    curLecture.question_uri = '/api/stage/material?path=' + encodeURIComponent(curLecture.path);
                     progressFn(1, 3, "Fetching questions... ");
-                    return ajaxApi.getJson(curLecture.question_uri, {timeout: 60 * 1000}).then(function (data) {
+                    return ajaxApi.getJson(curLecture.material_uri, {timeout: 60 * 1000}).then(function (data) {
                         return self._withLecture(lecUri, function (curLecture) {
                             curLecture.questions = data.stats;
                             Object.keys(data.data).map(function (qnId) {
