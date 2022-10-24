@@ -53,13 +53,9 @@ def stage_index(request):
     if len(answer_queue) > 0:
         lti_replace_grade(alloc.db_stage, alloc.db_student, answer_queue[-1].get('grade_after', 0))
 
-    # If we've gone over a refresh interval, tell client to throw away questions
-    if alloc.should_refresh_questions(answer_queue, additions):
-        questions = []
-    else:
-        # Get new stats for each question, update
-        questions = incoming.get('questions', [])
-        update_stats(alloc, questions)
+    # Get new stats for each question, update
+    questions = incoming.get('questions', [])
+    update_stats(alloc, questions)
 
     return dict(
         uri=stage_url(path=request.params['path']),
@@ -69,8 +65,9 @@ def stage_index(request):
         settings=clientside_settings(alloc.settings),
         material_tags=alloc.db_stage.material_tags,
         questions=questions,
-        material_uri='/api/stage/material?path=%s' % (
+        material_uri='/api/stage/material?path=%s&hash=%s' % (
             request.params['path'],
+            alloc.material_hash(),
         ),
         answerQueue=answer_queue,
         time_offset=time_offset,

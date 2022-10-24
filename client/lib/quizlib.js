@@ -692,10 +692,9 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
                     curLecture.material_uri = '/api/stage/material?path=' + encodeURIComponent(curLecture.path);
                 }
 
-                // Check if either we have no question bank yet, or we have missing questions
-                var missingQns = opts.forceQuestions || curLecture.questions.length === 0 || curLecture.questions.find(function (q) {
-                    return (self.ls.getItem(q.uri) === null);
-                });
+                // Fetch material again if the URI has changed
+                // NB: This will be reduntant once we have the question cache
+                var missingQns = !preSyncLecture.material_uri || preSyncLecture.material_uri !== curLecture.material_uri;
 
                 if (missingQns) {
                     progressFn(1, 3, "Fetching questions... ");

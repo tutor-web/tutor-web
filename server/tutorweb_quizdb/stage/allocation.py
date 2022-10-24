@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import random
 import struct
 
@@ -76,12 +77,15 @@ class BaseAllocation():
             )
         return [stats.get(x, dict(stage_answered=0, stage_correct=0)) for x in public_ids]
 
-    def should_refresh_questions(self, aq, old_aq):
+    def material_hash(self):
         """
-        Has enough time passed between 2 answer queues that we should refresh
-        the student's question bank?
+        Get a hash representing current material selection
         """
-        return False
+        mat_bytes = b"/".join(
+            b"%d:%d" % (mss_id, permutation)
+            for mss_id, permutation in self.get_material()
+        )
+        return hashlib.sha1(mat_bytes).hexdigest()
 
 
 class OriginalAllocation(BaseAllocation):
@@ -104,7 +108,7 @@ class OriginalAllocation(BaseAllocation):
         self.seed = int(settings['allocation_seed'])
         self.cipher = skippy.Skippy(settings['allocation_encryption_key'].encode('ascii'))
         self.refresh_int = int(self.settings.get('allocation_refresh_interval', 20))
-        self.question_cap = 100
+        self.question_cap = int(self.settings.get('question_cap', 100))
 
     def to_public_id(self, mss_id, permutation):
         return base64.b64encode(struct.pack(
@@ -139,13 +143,6 @@ class OriginalAllocation(BaseAllocation):
             local_random.seed(self.seed + (self._aq_length() // self.refresh_int))
             material = local_random.sample(material, self.question_cap)
         return material
-
-    def should_refresh_questions(self, aq, additions):
-        """
-        Has enough time passed between 2 answer queues that we should refresh
-        the student's question bank?
-        """
-        return len(aq) // self.refresh_int != (len(aq) - additions) // self.refresh_int
 
 
 class PassThroughAllocation(BaseAllocation):
