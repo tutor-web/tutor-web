@@ -16,7 +16,7 @@ PROJECT_NAME="${PROJECT_NAME-$(basename ${PROJECT_PATH})}"  # The project direct
 PROJECT_MODE="${PROJECT_MODE-development}"  # The project mode, development or production
 
 SERVER_NAME="${SERVER_NAME-$(hostname --fqdn)}"  # The server_name(s) NGINX responds to
-SERVER_CERT_PATH="${SERVER_CERT_PATH-}"  # e.g. /etc/nginx/ssl/certs
+SERVER_CERT_PATH="${SERVER_CERT_PATH-/var/lib/dehydrated}"  # Dehydrated working dir
 if [ "${PROJECT_MODE}" = "production" ]; then
     # Default to nobody
     UWSGI_USER="${UWSGI_USER-nobody}"
@@ -94,7 +94,22 @@ fi
 # NGINX config for serving clientside
 echo -n "" > /etc/nginx/sites-available/${PROJECT_NAME}
 
-if [ -n "${SERVER_CERT_PATH}" -a -e "${SERVER_CERT_PATH}/certs/${SERVER_NAME}/fullchain.pem" ]; then
+if [ -e "${SERVER_CERT_PATH}" ]; then
+    # Generate self-signed cert as fallthrough
+    mkdir -p -- "${SERVER_CERT_PATH}/certs/${SERVER_NAME}"
+    [ -e "${SERVER_CERT_PATH}/certs/${SERVER_NAME}/privkey-ss.pem" ] || openssl req -x509 -newkey rsa:4096 -sha256 -days 365 -nodes \
+        -keyout "${SERVER_CERT_PATH}/certs/${SERVER_NAME}/privkey-ss.pem" \
+        -out "${SERVER_CERT_PATH}/certs/${SERVER_NAME}/fullchain-ss.pem" \
+        -subj "/C=GB/CN=${SERVER_NAME}" \
+        -addext "subjectAltName = DNS:selfsigned.${SERVER_NAME}"
+    [ -e "${SERVER_CERT_PATH}/certs/${SERVER_NAME}/fullchain.pem" ] || ln -rs \
+        "${SERVER_CERT_PATH}/certs/${SERVER_NAME}/fullchain-ss.pem" \
+        "${SERVER_CERT_PATH}/certs/${SERVER_NAME}/fullchain.pem"
+    [ -e "${SERVER_CERT_PATH}/certs/${SERVER_NAME}/privkey.pem" ] || ln -rs \
+        "${SERVER_CERT_PATH}/certs/${SERVER_NAME}/privkey-ss.pem" \
+        "${SERVER_CERT_PATH}/certs/${SERVER_NAME}/privkey.pem"
+    [ -e "${SERVER_CERT_PATH}/dhparam.pem" ] || openssl dhparam -out "${SERVER_CERT_PATH}/dhparam.pem" 4096
+
     # Generate full-blown SSL config
     cat <<EOF >> /etc/nginx/sites-available/${PROJECT_NAME}
 server {
