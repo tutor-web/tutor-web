@@ -152,10 +152,6 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
         var self = this,
             subs = self.ls.getItem('_subscriptions');
 
-        if (self.ls.getItem('_index')) {
-            throw new Error("An _index exists from an old version of tutor-web!");
-        }
-
         if (subs) {
             return Promise.resolve(subs);
         }
