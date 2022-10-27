@@ -68,17 +68,21 @@ function MockAjaxApi() {
     this.block = function (method, data) {
         var self = this,
             timerTick = 10,
+            waited = 0,
             promiseId = [method, this.count++].join(' ');
         //console.trace(promiseId);
-        self.responses[promiseId] = null;
+        self.responses[promiseId] = undefined;
         this.data[promiseId] = data;
 
         return new Promise(function (resolve, reject) {
             setTimeout(function tick() {
                 var r = self.responses[promiseId];
                 if (r === undefined) {
-                    //console.log('WAITING: "' + promiseId + '" / ', Object.keys(self.responses));
-                    return setTimeout(tick(), timerTick);
+                    if (waited++ < 10) {
+                        setTimeout(tick, timerTick);
+                        return;
+                    }
+                    r = new Error("MockAjaxApi Timeout: " + promiseId + ' [' + Object.keys(self.responses) + ']');
                 }
 
                 delete self.responses[promiseId];
