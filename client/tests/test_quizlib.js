@@ -76,8 +76,8 @@ function MockAjaxApi() {
         return new Promise(function (resolve, reject) {
             setTimeout(function tick() {
                 var r = self.responses[promiseId];
-                if (!r) {
-                    //console.log("WAITING: " + promiseId);
+                if (r === undefined) {
+                    //console.log('WAITING: "' + promiseId + '" / ', Object.keys(self.responses));
                     return setTimeout(tick(), timerTick);
                 }
 
@@ -119,10 +119,12 @@ function MockAjaxApi() {
             if (allEqual(Object.keys(self.responses), expectedResponses)) {
                 resolve(self.responses);
             } else if (waited > 10) {
+                console.log(self);
+                console.log(expectedResponses);
                 reject(self.responses);
             } else {
                 waited++;
-                setTimeout(pollQueue.bind(null, resolve), 5);
+                setTimeout(pollQueue.bind(null, resolve, reject), 5);
             }
         });
     };
