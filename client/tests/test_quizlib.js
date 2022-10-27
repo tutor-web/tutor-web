@@ -150,23 +150,7 @@ function setCurLec(quiz, tutUri, lecUri) {
     });
 }
 function insertTutorial(quiz, tutId, tutTitle, lectures, questions) {
-    return quiz._getSubscriptions(true).then(function (subscriptions) {
-        lectures.map(function (l) {
-            if (!l.title) {
-                l.title = "Lecture " + l.uri;
-            }
-            quiz.ls.setItem(l.uri, l);
-        });
-
-        subscriptions.children.push({
-            id: tutId,
-            title: tutTitle,
-            children: lectures.map(function (l) { return { uri: l.uri, title: l.title }; }),
-        });
-
-        quiz.ls.setItem('_subscriptions', subscriptions);
-        quiz.insertQuestions(questions);
-    });
+    return quiz.insertTutorial(tutId, tutTitle, lectures, questions);
 }
 function newTutorial(quiz, tut_uri, extra_settings, question_counts) {
     var question_objects = {},
@@ -1421,17 +1405,6 @@ test('getQuestionReviewForm', function (t) {
         quiz = new Quiz(ls, aa),
         utils = test_utils();
 
-    quiz.insertQuestions({
-        "ut:qn-custom-template": {
-            content: "<p>This is good stuff</p>",
-            correct: [],
-            review_questions: [
-                {name: 'qn1', title: 'Question 1', values: [[0, 'Bad'], [-1, 'Even worse']]},
-                {name: 'qn2', title: 'Question 2', values: [[0, 'Bad'], [-1, 'Even worse']]},
-            ],
-        }
-    });
-
     return insertTutorial(quiz, 'ut:tutorial0', 'UT tutorial', [
         {
             "uri": "ut:lecture0",
@@ -1445,7 +1418,16 @@ test('getQuestionReviewForm', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": { },
         },
-    ], utils.utQuestions).then(function () {
+    ], Object.assign({}, utils.utQuestions, {
+        "ut:qn-custom-template": {
+            content: "<p>This is good stuff</p>",
+            correct: [],
+            review_questions: [
+                {name: 'qn1', title: 'Question 1', values: [[0, 'Bad'], [-1, 'Even worse']]},
+                {name: 'qn2', title: 'Question 2', values: [[0, 'Bad'], [-1, 'Even worse']]},
+            ],
+        }
+    })).then(function () {
 
         // Lecture0 has a question with a custom template
         return quiz.setCurrentLecture({'lecUri': 'ut:lecture0'});
@@ -1702,57 +1684,63 @@ test('_getNewQuestion', function (t) {
         return quiz.setCurrentLecture({'lecUri': 'ut:lecture-online'});
     }).then(function () {
         promise = quiz.getNewQuestion({practice: false});
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 0"]);
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 0"]);
 
     // Returning a fail should result in another attempt
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 0, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 1"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 0, new Error("Go away"));
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 1"]);
 
     // Return actual promise which should get us a question
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 1, {data: {"ut:question-a": utils.utQuestions["ut:question0"]}});
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 1, {data: {"ut:question-a": utils.utQuestions["ut:question0"]}});
         return promise;
     }).then(function (args) {
         t.equal(args.qn.text, '<div>The symbol for the set of all irrational numbers is... (a)</div>');
+        // The question data is cached
+        t.equal(quiz._lastFetched.material_data.text, '<div>The symbol for the set of all irrational numbers is... (a)</div>');
+        // NB: setQuestionAnswer shoudn't gennerate another request
         return quiz.setQuestionAnswer([{name: "answer", value: 0}]);
 
     // If we keep failing, eventually the error bubbles up.
     }).then(function () {
         promise = quiz.getNewQuestion({practice: false});
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 2"]);
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 2"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 2, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 3"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 2, new Error("Go away"));
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 3"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 3, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 4"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 3, {data: {"ut:question-a": {
+            error: "Erk",  // NB: An error causes a retry loop, just as missing questions do
+            data: {"ut:question-a": utils.utQuestions["ut:question0"]}
+        }}});
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 4"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 4, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 5"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 4, new Error("Go away"));
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 5"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 5, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 6"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 5, new Error("Go away"));
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 6"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 6, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 7"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 6, new Error("Go away"));
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 7"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 7, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 8"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 7, new Error("Go away"));
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 8"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 8, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 9"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 8, new Error("Go away"));
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 9"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 9, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 10"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 9, new Error("Go away"));
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 10"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 10, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 11"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 10, new Error("Go away"));
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 11"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 11, new Error("Go away"));
-        return aa.waitForQueue(["GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a 12"]);
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 11, new Error("Go away"));
+        return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 12"]);
     }).then(function (args) {
-        aa.setResponse('GET /api/stage/material?path=ut%3Alecture-online&id=ut%3Aquestion-a', 12, new Error("Go away now!"));
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 12, new Error("Go away now!"));
         return promise.then(function () { t.fail(); }).catch(function (err) {
             t.equal(err.message, "Go away now!");
         }).then(function () {
@@ -1761,79 +1749,6 @@ test('_getNewQuestion', function (t) {
 
     }).then(function (args) {
         tk.reset();
-        t.end();
-    }).catch(function (err) {
-        console.log(err.stack);
-        t.fail(err);
-        t.end();
-    });
-});
-
-test('_getQuestionData', function (t) {
-    var ls = new MockLocalStorage(),
-        quiz = new Quiz(ls);
-
-    // Set up localstorage with some data
-    Promise.resolve().then(function (args) {
-        ls.setItem("http://camel.com/", '{"s": "camel"}');
-        ls.setItem("http://sausage.com/", '{"s": "sausage"}');
-        ls.setItem("http://marmite.com/", '{"error": "MarmiteError"}');
-
-    // Can fetch back data
-    }).then(function (qn) {
-        return quiz._getQuestionData("http://sausage.com/");
-    }).then(function (qn) {
-        t.deepEqual(qn, {s: "sausage", uri: "http://sausage.com/"});
-    }).then(function (qn) {
-        return quiz._getQuestionData("http://camel.com/");
-    }).then(function (qn) {
-        t.deepEqual(qn, {s: "camel", uri: "http://camel.com/"});
-
-    // Can get the same data back thanks to the last question cache
-    }).then(function (qn) {
-        ls.setItem("http://camel.com/", '{"s": "dromedary"}');
-        ls.setItem("http://sausage.com/", '{"s": "walls"}');
-    }).then(function (qn) {
-        return quiz._getQuestionData("http://camel.com/", true);
-    }).then(function (qn) {
-        t.deepEqual(qn, {s: "camel", uri: "http://camel.com/"});
-
-    // But not once we ask for something else
-    }).then(function (qn) {
-        return quiz._getQuestionData("http://sausage.com/", true);
-    }).then(function (qn) {
-        t.deepEqual(qn, {s: "walls", uri: "http://sausage.com/"});
-    }).then(function (qn) {
-        return quiz._getQuestionData("http://camel.com/", true);
-    }).then(function (qn) {
-        t.deepEqual(qn, {s: "dromedary", uri: "http://camel.com/"});
-
-    // Or if we don't use the cache
-    }).then(function (qn) {
-        ls.setItem("http://camel.com/", '{"s": "alice"}');
-        ls.setItem("http://sausage.com/", '{"s": "cumberland"}');
-    }).then(function (qn) {
-        return quiz._getQuestionData("http://camel.com/", false);
-    }).then(function (qn) {
-        t.deepEqual(qn, {s: "alice", uri: "http://camel.com/"});
-
-    // If question suggests a new path, then the cache uses that
-    }).then(function (qn) {
-        ls.setItem("http://sausage.com/", '{"uri": "http://frankfurter.com/","s": "wurst"}');
-    }).then(function (qn) {
-        return quiz._getQuestionData("http://sausage.com/", false);
-    }).then(function (qn) {
-        t.deepEqual(qn, {s: "wurst", uri: "http://frankfurter.com/"});
-    }).then(function (qn) {
-        return quiz._getQuestionData("http://frankfurter.com/", true);
-    }).then(function (qn) {
-        t.deepEqual(qn, {s: "wurst", uri: "http://frankfurter.com/"});
-
-    // If the question didn't render, than we throw the error (so we retry and try something else)
-    }).then(function (qn) {
-        t.throws(function () { quiz._getQuestionData("http://marmite.com/", false); }, /MarmiteError/);
-
-    }).then(function (args) {
         t.end();
     }).catch(function (err) {
         console.log(err.stack);

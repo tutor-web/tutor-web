@@ -73,14 +73,6 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
         return Math.max(rv - (aq.length - answers_real), 0);
     }
 
-    /** Insert questions into localStorage */
-    this.insertQuestions = function (qns) {
-        var self = this;
-        Object.keys(qns).map(function (qnUri) {
-            self.ls.setItem(qnUri, qns[qnUri]);
-        });
-    };
-
     /** Return promise to deep array of lectures and their URIs */
     this.getAvailableLectures = function () {
         var self = this;
@@ -97,14 +89,8 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
             });
 
             // Does this lecture have everything it needs to be offline?
-            function isOffline(l) {
-                var i;
-
-                for (i = 0; i < l.questions.length; i++) {
-                    if (!lsItems[l.questions[i].uri]) {
-                        return false;
-                    }
-                }
+            function isOffline() {
+                // TODO: Need to ask ServiceWorker if all-questions is in the cache.
                 return true;
             }
 
@@ -269,7 +255,7 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
                 if (lastAns && !lastAns.time_end) {
                     // Last question wasn't answered, carry on answering
                     a = lastAns;
-                    return self._getQuestionData(a.uri).then(function (qn) {
+                    return self._getQuestionData(curLecture, a.uri).then(function (qn) {
                         // NB: Not storing allocation in answerqueue again
                         return {qn: qn, a: a};
                     });
@@ -285,7 +271,7 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
                 a.lec_correct = lastAns && lastAns.lec_correct ? lastAns.lec_correct : 0;
                 a.practice_answered = lastAns && lastAns.practice_answered ? lastAns.practice_answered : 0;
                 a.client_id = self._getClientId();
-                return self._getQuestionData(a.uri).then(function (qn) {
+                return self._getQuestionData(curLecture, a.uri).then(function (qn) {
                     // Store new allocation in answerQueue
                     curLecture.answerQueue.push(a);
                     return {qn: qn, a: a};
@@ -349,47 +335,61 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
     };
 
     /** Returns a promise with the question data, either from localstorage or HTTP */
-    this._getQuestionData = function (uri, cachedOkay) {
-        var qn, promise, self = this;
+    this._getQuestionData = function (curLecture, material_id, cachedOkay) {
+        var p, self = this;
 
-        if (cachedOkay && self._lastFetched && self._lastFetched.uri === uri) {
-            // Pull out of in-memory cache
-            promise = Promise.resolve(self._lastFetched.question);
-        } else {
-            qn = self.ls.getItem(uri);
-            if (qn) {
-                if (qn.error) {
-                    // This question didn't render properly, ignore it and get the next
-                    throw new Error(qn.error);
-                }
-                // Fetch out of localStorage
-                promise = Promise.resolve(qn);
-            } else {
-                // Fetch via. HTTP
-                // NB: uri isn't really a URI any more, it's the question ID. Bodge.
-                promise = self.ajaxApi.getJson('/api/stage/material' +
-                                               '?path=' + encodeURIComponent(self.lecUri) +
-                                               '&id=' + encodeURIComponent(uri)).then(function (data) {
-                    // Dig out the rendered material
-                    qn = data.data[uri];
-
-                    if (qn.error) {
-                        // This question didn't render properly, ignore it and get the next
-                        throw new Error(qn.error);
-                    }
-                    return qn;
-                });
-            }
+        if (!self._lastFetched) {
+            self._lastFetched = {};
+        }
+        if (!curLecture.material_uri) {
+            throw new Error("Missing material_uri");
         }
 
-        // Store question for next time around
-        // NB: This is here to ensure that answers get the same question data
-        // as questions
-        return promise.then(function (qn) {
-            if (!qn.uri) {
-                qn.uri = uri;
+        if (cachedOkay && material_id && self._lastFetched.material_id === material_id) {
+            // Pull out of in-memory cache
+            return Promise.resolve(self._lastFetched.material_data);
+        }
+
+        // Get all-question data, keep in memory
+        if (self._lastFetched.material_uri === curLecture.material_uri) {
+            p = Promise.resolve(self._lastFetched.all_material);
+        } else {
+            // TODO: getCachedJson
+            p = ajaxApi.getJson(curLecture.material_uri, { timeout: 60 * 1000 }).then(function (data) {
+                self._lastFetched.material_uri = curLecture.material_uri;
+                self._lastFetched.all_material = data;
+                return data;
+            });
+        }
+
+        if (material_id === undefined) {
+            // Pre-warming material cache, don't need to do anything more
+            return p;
+        }
+
+        // Fetch question data
+        return p.then(function (all_qns) {
+            if (all_qns.data[material_id]) {
+                return all_qns.data[material_id];
             }
-            self._lastFetched = { "uri": qn.uri, "question": qn };
+            // Request the individual question
+            return self.ajaxApi.getJson(curLecture.material_uri + '&id=' + encodeURIComponent(material_id)).then(function (data) {
+                var qn = data.data[material_id];
+                // Stash question for using later
+                // NB: Not just for efficiency, ensures answer compares same UG question
+                self._lastFetched.material_id = material_id;
+                self._lastFetched.material_data = qn;
+                return qn;
+            });
+        }).then(function (qn) {
+            if (qn.error) {
+                // This question didn't render properly, throw as error and let getQuestionData find another one.
+                throw new Error(qn.error);
+            }
+            if (!qn.uri) {
+                // Make sure we have a "uri" if not added server-side
+                qn.uri = material_id;
+            }
             return qn;
         });
     };
@@ -407,7 +407,7 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
             a.synced = false;
 
             // Get question data and mark
-            return self._getQuestionData(a.uri, true).then(function (qn) {
+            return self._getQuestionData(curLecture, a.uri, true).then(function (qn) {
                 var answerData = !qn.hasOwnProperty('correct') ? {}
                                : typeof qn.correct === 'string' ? JSON.parse(window.atob(qn.correct))
                                : qn.correct;
@@ -464,7 +464,7 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
         return self._withLecture(null, function (curLecture) {
             var a = arrayLast(curLecture.answerQueue);
 
-            return self._getQuestionData(a.uri, true).then(function (qn) {
+            return self._getQuestionData(curLecture, a.uri, true).then(function (qn) {
                 return qn.review_questions || default_review;
             });
         });
@@ -511,6 +511,7 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
 
                 // Fetch questions also and up their count
                 return self._getLecture(uri, true).then(function (l) {
+                    // Remove questions (tidy up for backward compatibility)
                     (l.questions || []).map(function (q) {
                         lsContent[q.uri]++;
                     });
@@ -527,6 +528,33 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
                 }
             }
             return removedItems;
+        });
+    };
+
+    /** Insert tutorial directly into localStorage, for testing */
+    this.insertTutorial = function (tutId, tutTitle, lectures, questions) {
+        var self = this;
+
+        return this._getSubscriptions(true).then(function (subscriptions) {
+            lectures.map(function (l) {
+                if (!l.title) {
+                    l.title = "Lecture " + l.uri;
+                }
+                self.ls.setItem(l.uri, l);
+
+                // Put all-questions into what should be fake Ajax request
+                // NB: We wrap questions in {data: } here to match server-side response
+                self._lastFetched.all_material = {data: questions};
+            });
+
+            subscriptions.children.push({
+                id: tutId,
+                title: tutTitle,
+                children: lectures.map(function (l) { return { uri: l.uri, title: l.title }; }),
+            });
+
+            self.ls.setItem('_subscriptions', subscriptions);
+
         });
     };
 
@@ -680,29 +708,23 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
                             ? _queueMerge(preSyncLecture.answerQueue, curLecture.answerQueue, newLecture.answerQueue)
                             : newLecture[k];
                     });
-                    return newLecture;
-                }, opts.ifMissing === 'fetch');
-            }).then(function (curLecture) {
-                // Make sure material_uri is populated
-                if (!curLecture.material_uri) {
-                    curLecture.material_uri = '/api/stage/material?path=' + encodeURIComponent(curLecture.path);
-                }
 
-                // Fetch material again if the URI has changed
-                // NB: This will be reduntant once we have the question cache
-                var missingQns = !preSyncLecture.material_uri || preSyncLecture.material_uri !== curLecture.material_uri;
+                    // Make sure material_uri is populated
+                    if (!curLecture.material_uri) {
+                        curLecture.material_uri = '/api/stage/material?path=' + encodeURIComponent(curLecture.path);
+                    }
 
-                if (missingQns) {
-                    progressFn(1, 3, "Fetching questions... ");
-                    return ajaxApi.getJson(curLecture.material_uri, {timeout: 60 * 1000}).then(function (data) {
-                        return self._withLecture(lecUri, function (curLecture) {
-                            curLecture.questions = data.stats;
-                            Object.keys(data.data).map(function (qnId) {
-                                self.ls.setItem(qnId, data.data[qnId]);
-                            });
+                    if (!opts.skipQuestions) {
+                        // Trigger the lecture data to be cached, update all stats
+                        progressFn(1, 3, "Fetching questions...");
+                        return self._getQuestionData(curLecture).then(function (all_qns) {
+                            curLecture.questions = all_qns.stats;
+                            return curLecture;
                         });
-                    });
-                }
+                    }
+
+                    return curLecture;
+                }, opts.ifMissing === 'fetch');
             }).then(function () {
                 progressFn(2, 3, "Tidying up...");
                 return opts.skipCleanup ? null : self.removeUnusedObjects();
