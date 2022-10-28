@@ -302,6 +302,29 @@ function test_utils() {
         },
     };
 
+    utils.question = function (uri, data) {
+        var answer = Math.floor(Math.random() * 100000).toString();
+
+        return Object.assign({}, {
+            uri: uri,
+            content: [
+                '<div>',
+                '<pre>' + uri + '</pre>',
+                '</div>',
+            ].join('\n'),
+            correct: {answer: answer},
+            tags: ["type.question"],
+        }, data);
+    }
+
+    utils.question_dict = function (uris) {
+        var out = {};
+        uris.forEach(function (u) {
+            out[u] = this.question(u);
+        }.bind(this));
+        return out;
+    }
+
     /** Configure a simple tutorial/lecture, ready for questions */
     utils.defaultLecture = function (quiz, settings) {
         return insertTutorial(quiz, 'ut:tutorial0', 'UT tutorial', [
@@ -1728,14 +1751,20 @@ test('_getNewQuestion', function (t) {
 
     // Return actual promise which should get us a question
     }).then(function (args) {
-        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 1, {data: {"ut:question-a": utils.utQuestions["ut:question0"]}});
+        aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 1, {
+            data: utils.question_dict(["ut:question-a"]),
+        });
         return promise;
     }).then(function (args) {
-        t.equal(args.qn.text, '<div>The symbol for the set of all irrational numbers is... (a)</div>');
+        t.equal(args.qn.content, '<div>\n<pre>ut:question-a</pre>\n</div>');
         // The question data is cached
-        t.equal(quiz._lastFetched.material_data.text, '<div>The symbol for the set of all irrational numbers is... (a)</div>');
-        // NB: setQuestionAnswer shoudn't gennerate another request
+        t.equal(quiz._lastFetched.material_data.content, '<div>\n<pre>ut:question-a</pre>\n</div>');
+        quiz._lastFetched.material_data.content = '<div>cached-value</div>';
+        // NB: setQuestionAnswer shoudn't generate another request
         return quiz.setQuestionAnswer([{name: "answer", value: 0}]);
+    }).then(function (args) {
+        // Got our modified cached-value from above
+        t.equal(args.qn.content, '<div>cached-value</div>');
 
     // If we keep failing, eventually the error bubbles up.
     }).then(function () {
