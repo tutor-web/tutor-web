@@ -144,6 +144,7 @@ StartView.prototype = new View(jQuery);
                 return 'lecturemenu';
                 //TODO: But what if we didn't manage to get the subscriptions table? Empty isn't good enough.
             }
+            console.error(err);
             if (err.message.indexOf('tutorweb::') !== -1) {
                 var parts = err.message.split(/\:\:/).splice(1);
                 twView.showAlert(parts[0], 'Syncing failed: ' + parts[1], parts[2]);
