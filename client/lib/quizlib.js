@@ -1,5 +1,5 @@
 /*jslint nomen: true, plusplus: true, browser:true, todo:true, regexp: true */
-/*global require, module, Promise */
+/*global require, module, Promise, Set */
 var iaalib = new (require('./iaa.js'))();
 require('es6-promise').polyfill();
 var shuffle = require('knuth-shuffle').knuthShuffle;
@@ -78,10 +78,13 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
         var self = this;
 
         return Promise.resolve().then(function () {
-            return self._getSubscriptions(false);
-        }).then(function (subscriptions) {
+            return Promise.all([
+                self._getSubscriptions(false),
+                ajaxApi.listCached(),
+            ]);
+        }).then(function (args) {
             // Get all mentioned lectures, get info about them
-            var lectureInfo = {}, lsItems = {};
+            var lectureInfo = {}, lsItems = {}, subscriptions = args[0], cache_uris = args[1];
 
             // Form a list of all things in localstorage
             self.ls.listItems().map(function (k) {
@@ -89,9 +92,16 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
             });
 
             // Does this lecture have everything it needs to be offline?
-            function isOffline() {
-                // TODO: Need to ask ServiceWorker if all-questions is in the cache.
-                return true;
+            function isOffline(l) {
+                var i;
+
+                for (i = 0; i < l.questions.length; i++) {
+                    if (l.questions[i].online_only) {
+                        return false;
+                    }
+                }
+
+                return cache_uris.has(l.material_uri);
             }
 
             return Promise.all(lectureUrisFromSubscription(subscriptions).map(function (uri) {
@@ -354,8 +364,7 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
         if (self._lastFetched.material_uri === curLecture.material_uri) {
             p = Promise.resolve(self._lastFetched.all_material);
         } else {
-            // TODO: getCachedJson
-            p = ajaxApi.getJson(curLecture.material_uri, { timeout: 60 * 1000 }).then(function (data) {
+            p = ajaxApi.getCachedJson(curLecture.material_uri, { timeout: 60 * 1000 }).then(function (data) {
                 self._lastFetched.material_uri = curLecture.material_uri;
                 self._lastFetched.all_material = data;
                 return data;
@@ -492,6 +501,7 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
     /** Go through subscriptions, remove any lectures that don't have an owner */
     this.removeUnusedObjects = function () {
         var self = this,
+            cacheContent = new Set(),
             lsContent = {};
 
         // Form object of everything in localStorage
@@ -511,12 +521,18 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
 
                 // Fetch questions also and up their count
                 return self._getLecture(uri, true).then(function (l) {
+                    // All-questions should be in ajaxApi cache
+                    cacheContent.add(l.material_uri);
+
                     // Remove questions (tidy up for backward compatibility)
                     (l.questions || []).map(function (q) {
                         lsContent[q.uri]++;
                     });
                 });
             }));
+        }).then(function () {
+            // Remove anything from the AjaxAPI cache
+            return ajaxApi.removeUnusedCache(cacheContent);
         }).then(function () {
             var k, removedItems = [];
 
@@ -544,7 +560,7 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
 
                 // Put all-questions into what should be fake Ajax request
                 // NB: We wrap questions in {data: } here to match server-side response
-                self._lastFetched.all_material = {data: questions};
+                self.ajaxApi.injectCache(l.material_uri, {data: questions});
             });
 
             subscriptions.children.push({

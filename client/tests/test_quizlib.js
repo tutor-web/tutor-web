@@ -1,11 +1,13 @@
 "use strict";
 /*jslint nomen: true, plusplus: true, unparam: true, todo: true*/
+/*global Set*/
 var test = require('tape');
 
 var Quiz = require('../lib/quizlib.js');
 var JSONLocalStorage = require('../lib/jsonls');
 var tk = require('timekeeper');
 var Promise = require('es6-promise').Promise;
+var LZString = require('lz-string');
 
 function broken_test(name, fn) {
     return fn;
@@ -47,6 +49,7 @@ function MockAjaxApi() {
     this.count = 0;
     this.responses = {};
     this.data = {};
+    this.cached = {};
 
     this.getHtml = function (uri) {
         return this.block('GET ' + uri, undefined);
@@ -58,6 +61,32 @@ function MockAjaxApi() {
 
     this.postJson = function (uri, data) {
         return this.block('POST ' + uri, data);
+    };
+
+    this.getCachedJson = function (uri, timeout) {
+        if (this.cached[uri] !== undefined) {
+            return Promise.resolve(this.cached[uri]);
+        }
+        return this.block('GET ' + uri, undefined).then(function (resp) {
+            this.cached[uri] = resp;
+            return resp;
+        }.bind(this));
+    };
+
+    this.injectCache = function (uri, ret) {
+        this.cached[uri] = ret;
+    };
+
+    this.listCached = function () {
+        return new Set(Object.keys(this.cached));
+    };
+
+    this.removeUnusedCache = function (expected_uris) {
+        Object.keys(this.cached).forEach(function (uri) {
+            if (!expected_uris.has(uri)) {
+                delete this.cached[uri];
+            }
+        }.bind(this));
     };
 
     this.ajax = function (call) {
@@ -192,7 +221,7 @@ function newTutorial(quiz, tut_uri, extra_settings, question_counts) {
             }),
             "settings": settings,
             "uri": tut_uri + ":lec" + lec_i,
-            "question_uri": tut_uri + ":lec" + lec_i + ":all-questions",
+            "material_uri": tut_uri + ":lec" + lec_i + ":all-questions",
         };
     }), question_objects);
 }
@@ -231,7 +260,7 @@ function test_utils() {
             "hist_sel": 0,
         },
         "uri": "ut:lecture0",
-        "question_uri": "ut:lecture0:all-questions",
+        "material_uri": "ut:lecture0:all-questions",
     });
 
     utils.utQuestions = {
@@ -285,7 +314,7 @@ function test_utils() {
                 ],
                 "settings": settings || { "hist_sel": '0' },
                 "uri": "ut:lecture0",
-                "question_uri": "ut:lecture0:all-questions",
+                "material_uri": "ut:lecture0:all-questions",
             },
         ], utils.utQuestions).then(function () {
             return quiz.setCurrentLecture({'lecUri': 'ut:lecture0'});
@@ -330,13 +359,13 @@ function syncMockSubscriptions(quiz, default_settings) {
             "settings": default_settings || {},
             "uri": "/api/stage?path=t0.l0.s0",
             // NB: Made up so we test overriding material_uri
-            "material_uri": "material_uri/t0.l0.s0",
+            "material_uri": "material_uri_override?path=t0.l0.s0",
             "path": "t0.l0.s0",
         });
 
-        return quiz.ajaxApi.waitForQueue(["GET material_uri/t0.l0.s0 4"]);
+        return quiz.ajaxApi.waitForQueue(["GET material_uri_override?path=t0.l0.s0 4"]);
     }).then(function () {
-        quiz.ajaxApi.setResponse("GET material_uri/t0.l0.s0", 4, {
+        quiz.ajaxApi.setResponse("GET material_uri_override?path=t0.l0.s0", 4, {
             data: test_utils().utQuestions,
             stats: [
                 { initial_answered: 0, initial_correct: 0, chosen: 0, correct: 0, uri: "ut:question0" },
@@ -919,7 +948,7 @@ broken_test('_setQuestionAnswer', function (t) {
 
 test('_setQuestionAnswer_exam', function (t) {
     var ls = new MockLocalStorage(),
-        quiz = new Quiz(ls);
+        quiz = new Quiz(ls, new MockAjaxApi());
 
     newTutorial(quiz, "ut:tut0", { grade_algorithm: "ratiocorrect" }, [5, 10]).then(function () {
         return setCurLec(quiz, "ut:tut0", "ut:tut0:lec0");
@@ -988,7 +1017,7 @@ test('_setQuestionAnswer_exam', function (t) {
 /** Explanation delay should increase with incorrect questions */
 test('_explanationDelay', function (t) {
     var ls = new MockLocalStorage(),
-        quiz = new Quiz(ls),
+        quiz = new Quiz(ls, new MockAjaxApi()),
         utils = test_utils();
 
     utils.defaultLecture(quiz, {
@@ -1056,7 +1085,7 @@ test('_explanationDelay', function (t) {
 /** We should get various strings encouraging users */
 test('_gradeSummaryStrings', function (t) {
     var ls = new MockLocalStorage(),
-        quiz = new Quiz(ls),
+        quiz = new Quiz(ls, new MockAjaxApi()),
         assignedQns = [],
         utils = test_utils();
 
@@ -1197,7 +1226,7 @@ test('_gradeSummaryStrings', function (t) {
 /** lastEight should return last relevant questions */
 test('_gradeSummarylastEight', function (t) {
     var ls = new MockLocalStorage(),
-        quiz = new Quiz(ls),
+        quiz = new Quiz(ls, new MockAjaxApi()),
         assignedQns = [],
         utils = test_utils();
 
@@ -1334,7 +1363,7 @@ test('_gradeSummarylastEight', function (t) {
 /** Should update question count upon answering questions */
 test('_questionUpdate ', function (t) {
     var ls = new MockLocalStorage(),
-        quiz = new Quiz(ls),
+        quiz = new Quiz(ls, new MockAjaxApi()),
         assignedQns = [],
         qnBefore,
         utils = test_utils();
@@ -1414,12 +1443,14 @@ test('getQuestionReviewForm', function (t) {
             "uri": "ut:lecture0",
             "answerQueue": [],
             "questions": [ {"uri": "ut:qn-custom-template", "chosen": 20, "correct": 100} ],
+            "material_uri": "ut:lecture0:all-questions",
             "settings": { },
         },
         {
             "uri": "ut:lecture1",
             "answerQueue": [],
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
+            "material_uri": "ut:lecture1:all-questions",
             "settings": { },
         },
     ], Object.assign({}, utils.utQuestions, {
@@ -1763,7 +1794,7 @@ test('_getNewQuestion', function (t) {
 
 test('_setCurrentLecture', function (t) {
     var ls = new MockLocalStorage(),
-        quiz = new Quiz(ls),
+        quiz = new Quiz(ls, new MockAjaxApi()),
         utils = test_utils();
 
     t.ok(!quiz.isLectureSelected());
@@ -1773,6 +1804,7 @@ test('_setCurrentLecture', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture0t0",
+            "material_uri": "ut:lecture0t0:all-questions",
             "title": "UT Lecture 0 (no answers)",
         },
         {
@@ -1780,6 +1812,7 @@ test('_setCurrentLecture', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture1",
+            "material_uri": "ut:lecture1:all-questions",
             "title": "UT Lecture 1 (no answers)",
         },
         {
@@ -1787,6 +1820,7 @@ test('_setCurrentLecture', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture-currentpract",
+            "material_uri": "ut:lecture-currentpract:all-questions",
             "title": "UT Lecture: Currently practicing",
         },
         {
@@ -1794,6 +1828,7 @@ test('_setCurrentLecture', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture-currentreal",
+            "material_uri": "ut:lecture-currentreal:all-questions",
             "title": "UT Lecture: Currently real",
         },
         {
@@ -1801,6 +1836,7 @@ test('_setCurrentLecture', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture0t1",
+            "material_uri": "ut:lecture0t1:all-questions",
             "title": "UT Lecture 0 (from tutorial 1)",
         },
     ], utils.utQuestions).then(function (args) {
@@ -1866,6 +1902,7 @@ test('_fetchSlides', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture0",
+            "material_uri": "ut:lecture0:all-questions",
             "slide_uri": "http://slide-url-for-lecture0",
             "title": "UT Lecture 0 (no answers)",
         },
@@ -1874,6 +1911,7 @@ test('_fetchSlides', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture1",
+            "material_uri": "ut:lecture1:all-questions",
             "title": "UT Lecture 1 (no answers)",
         }
     ], utils.utQuestions).then(function () {
@@ -1921,6 +1959,7 @@ broken_test('_fetchReview', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture0",
+            "material_uri": "ut:lecture0:all-questions",
             "slide_uri": "http://slide-url-for-lecture0",
             "title": "UT Lecture 0 (no review URI)",
         },
@@ -1929,6 +1968,7 @@ broken_test('_fetchReview', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture1",
+            "material_uri": "ut:lecture1:all-questions",
             "review_uri": "http://review-url-for-lecture1",
             "title": "UT Lecture 1 (with a review)",
         }
@@ -1975,6 +2015,7 @@ test('_updateAward', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture0",
+            "material_uri": "ut:lecture0:all-questions",
             "slide_uri": "http://slide-url-for-lecture0",
             "title": "UT Lecture 0 (no answers)",
         },
@@ -2048,6 +2089,7 @@ test('_updateUserDetails', function (t) {
             "questions": [ {"uri": "ut:question0", "chosen": 20, "correct": 100} ],
             "settings": {},
             "uri": "ut:lecture0",
+            "material_uri": "ut:lecture0:all-questions",
             "slide_uri": "http://slide-url-for-lecture0",
             "title": "UT Lecture 0 (no answers)",
             "user": "brenda",
