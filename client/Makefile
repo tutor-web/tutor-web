@@ -12,6 +12,7 @@ OUT_FILES = \
     www/geogebra \
     www/js/polyfill.min.js \
     www/js/libraries.min.js \
+    www/serviceworker.js \
     www/css/libraries.min.css \
     $(foreach O,$(OUTPUTS),www/$(O).html www/js/$(O).min.js www/css/$(O).min.css)
 
@@ -130,8 +131,11 @@ www/%.html: lib/%.html lib/base.html $(filter-out %.html,$(OUT_FILES)) \
 	    $(NODE_CMD) build/html_compile.js $< $@.mktmp $^
 	mv $@.mktmp $@
 
-www/js/serviceworker.js: lib-sw/*.js www/tw.js www/polyfill.js www/mathjax-config.js www/*.css www/*.jpg
-	cat lib-sw/*.js > $@
+www/serviceworker.js: lib-sw/*.js $(filter-out www/serviceworker.js %.html www/geogebra,$(OUT_FILES))
+	echo "appResources = [" > $@
+	for f in $(subst www/,,$(filter-out www/test/% www/css/test/% www/js/test/% www/geogebra,$(OUT_FILES))); do echo "    '$$f'," >> $@; done
+	echo "];" >> $@
+	cat lib-sw/*.js >> $@
 	@echo "" >> $@
 	@echo -n "// MD5: " >> $@
 	@cat $+ | md5sum | cut -d' ' -f1 >> $@

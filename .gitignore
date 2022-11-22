@@ -7,6 +7,7 @@
 /client/www/htmlcov
 /client/www/css/*
 /client/www/js/*
+/client/www/serviceworker.js
 /client/www/*.html
 /client/www/geogebra/
 /client/yarn-error.log
