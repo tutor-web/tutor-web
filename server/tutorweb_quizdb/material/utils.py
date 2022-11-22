@@ -39,14 +39,23 @@ def file_md5sum(path):
         return(hashlib.md5(f.read()).hexdigest())
 
 
-def _file_revision(material_bank, path, prev_revision):
+def _file_revision(material_bank, path, prev_revision, git_broken_okay=False):
     """
     Find out git revision for file, adding to it for each dirty version we see
     """
     # Get git revision for file
     repo = git.Repo(material_bank)
     git_revision = '(untracked)'
-    for rev in repo.iter_commits(paths=path, max_count=1):
+    try:
+        revs = repo.iter_commits(paths=path, max_count=1)
+    except ValueError as e:
+        if git_broken_okay:
+            # NB: Later versions of git can fail to read version information on a repository we don't own:
+            #     ValueError: SHA could not be resolved, git returned: b''
+            #     /preview has no need for the revision anyway, so ignore the error.
+            return '(git-error)'
+        raise e
+    for rev in revs:
         git_revision = str(rev)
 
     m = re.search(r'^(.*)\+(\d+)$', prev_revision) if prev_revision else None
@@ -73,7 +82,7 @@ def material_bank_open(material_bank, path, *args):
     return open(combined_path, *args)
 
 
-def path_to_materialsource(material_bank, path, prev_revision):
+def path_to_materialsource(material_bank, path, prev_revision, git_broken_okay=False):
     """
     Read in metadata from file, turn into dict of options
     to create materialsource
@@ -86,7 +95,7 @@ def path_to_materialsource(material_bank, path, prev_revision):
                 m = setting_re.search(line)
                 if m:
                     file_metadata[m.group(1)] = m.group(2)
-        revision = _file_revision(material_bank, path, prev_revision)
+        revision = _file_revision(material_bank, path, prev_revision, git_broken_okay)
     except FileNotFoundError:
         file_metadata = dict(
             PERMUTATIONS=0,

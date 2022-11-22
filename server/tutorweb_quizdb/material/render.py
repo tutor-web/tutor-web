@@ -82,7 +82,7 @@ def view_material_render(request):
     # Regenerate the material source the DB would hold
     material_bank = request.json.get('material_bank', request.registry.settings['tutorweb.material_bank.default'])
     ms = Base.classes.material_source(
-        **path_to_materialsource(material_bank, request.json['path'], None),
+        **path_to_materialsource(material_bank, request.json['path'], None, git_broken_okay=True),
         md5sum=file_md5sum(os.path.join(material_bank, request.json['path'])))
 
     # Find all data templates for this question, and add to response
