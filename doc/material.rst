@@ -148,10 +148,23 @@ Previewing material
 ===================
 
 There is a helper in the material bank to let you preview question output in R.
-For example::
+You can start it with, e.g::
 
-    > source('db/material_bank/test.html/lecture100/multiple_input.q.R', chdir = TRUE)
-    > qn_preview(question(1))
+    > source('preview.R')
+    > s <- material_preview('math.kcse.1/p01q01/multiple_input.q.R')
+
+This will start a webserver using `servr <https://cran.r-project.org/package=servr>`__,
+every time you refresh the page the given script will be run and the output shown in a Tutor-web window.
+
+Any console & logging output will also be captured, for example you can use either of the following in your script to output debug information::
+
+    logging::logdebug("woo")
+    str(list(a=1, b=2))
+
+Previewing material inside tutor-web
+====================================
+
+Content already in the material bank can be viewed by going to ``/preview``.
 
 Your tutor-web user has to have the ``admin.material_render`` permission before being allowed to preview material.
 You can add this at the commandline::
