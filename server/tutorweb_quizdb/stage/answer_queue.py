@@ -97,7 +97,7 @@ def mark_aq_entry_usergenerated(db_a, alloc, ug_reviews):
 
     if out_count > 0:
         # Mark should be mean of all reviews
-        db_a.mark = int(out_total / max(int(alloc.settings.get('ugreview_minreviews', 3)), out_count))
+        db_a.mark = int(out_total / max(int(float(alloc.settings.get('ugreview_minreviews', 3))), out_count))
     else:
         db_a.mark = 0
 

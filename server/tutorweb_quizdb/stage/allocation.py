@@ -105,10 +105,10 @@ class OriginalAllocation(BaseAllocation):
 
     def __init__(self, settings, db_stage, db_student):
         super(OriginalAllocation, self).__init__(settings, db_stage, db_student)
-        self.seed = int(settings['allocation_seed'])
+        self.seed = int(float(settings['allocation_seed']))
         self.cipher = skippy.Skippy(settings['allocation_encryption_key'].encode('ascii'))
-        self.refresh_int = int(self.settings.get('allocation_refresh_interval', 20))
-        self.question_cap = int(self.settings.get('question_cap', 100))
+        self.refresh_int = int(float(self.settings.get('allocation_refresh_interval', 20)))
+        self.question_cap = int(float(self.settings.get('question_cap', 100)))
 
     def to_public_id(self, mss_id, permutation):
         return base64.b64encode(struct.pack(
