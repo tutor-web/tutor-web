@@ -13,16 +13,23 @@ var hodfs = {};
 
 function page_load(qs, student_dataframes) {
     var twView = new View(jQuery),
-        ajaxApi = new AjaxApi(jQuery.ajax);
+        ajaxApi = new AjaxApi(jQuery.ajax),
+        p;
 
     formson.update_form(document.forms.preview_select, qs);
-    if (!qs.path) {
+    if (document.getElementById('rendered-question')) {
+        // A rendered question got injected, use that.
+        p = Promise.resolve(JSON.parse(document.getElementById('rendered-question').innerText));
+    } else if (qs.path) {
+        // A path provided, fetch from server
+        p = ajaxApi.postJson('/api/material/render', qs);
+    } else {
         // Nothing to do, don't bother doing it.
         return;
     }
 
     qs.student_dataframes = student_dataframes;
-    return ajaxApi.postJson('/api/material/render', qs).then(function (data) {
+    return p.then(function (data) {
         var dataframe_container_el = document.getElementById('dataframe-container');
 
         Object.keys(data.dataframe_templates || {}).forEach(function (k) {
