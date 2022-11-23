@@ -43,6 +43,22 @@ class RobToDictTest(unittest.TestCase):
             dict(poop=None, parp=[None])
         )
 
+    def test_shiny_tag_list(self):
+        out = rob_to_dict(robjects.r('''(function() {
+            library(htmltools)
+            list(
+                content = withTags(tagList(
+                    p("Your favourite number (should be 5):"),
+                    input(type="number", name="number", min="0", max="10", step="1"))),
+                correct = list(number=5))
+        })()'''))
+        self.assertEqual(out, dict({
+            'content':
+                '<p>Your favourite number (should be 5):</p>\n'
+                '<input type="number" name="number" min="0" max="10" step="1"/>',
+            'correct': {'number': [5.0]},
+        }))
+
 
 class MaterialRenderTest(RequiresMaterialBank, unittest.TestCase):
     def test_material_render(self):

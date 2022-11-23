@@ -17,7 +17,7 @@ def rob_to_dict(a):
     Take R Object and turn it into something JSON-parsable
     """
     if isinstance(a, robjects.vectors.ListVector):
-        if 'shiny.tag' in set(a.rclass):
+        if 'shiny.tag' in set(a.rclass) or 'shiny.tag.list' in set(a.rclass):
             return robjects.r['as.character'](a)[0]
         elif a.names:
             return dict(zip(a.names, [rob_to_dict(x) for x in a]))
