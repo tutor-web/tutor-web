@@ -315,7 +315,7 @@ function test_utils() {
             correct: {answer: answer},
             tags: ["type.question"],
         }, data);
-    }
+    };
 
     utils.question_dict = function (uris) {
         var out = {};
@@ -323,7 +323,7 @@ function test_utils() {
             out[u] = this.question(u);
         }.bind(this));
         return out;
-    }
+    };
 
     /** Configure a simple tutorial/lecture, ready for questions */
     utils.defaultLecture = function (quiz, settings) {
