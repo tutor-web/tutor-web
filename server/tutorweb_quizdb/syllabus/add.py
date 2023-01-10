@@ -1,44 +1,43 @@
 """
-{
-    "path": "comp.crypto251",
-    "titles": ["Computer Science Department", "Cryptocurrency and the Smileycoin"],
-    "requires_group": null,
-    "lectures": [
-        ["lec00100", "Introduction to cryptocurrencies"],
-        ["lec00200", "Smileycoin basics"],
-        ["lec00250", "Picking up a wallet"],
-        ["lec00260", "Compiling the Linux wallet"],
-        ["lec00300", "Introduction to the SMLY command line"],
-        ["lec01400", "The transaction: from concept to theory"],
-        ["lec01500", "The block and the blockchain"],
-        ["lec01600", "Cryptocurrency mining"],
-        ["lec02000", "Cryptography and cryptocurrencies"],
-        ["lec02100", "Hash function introduction"],
-        ["lec02200", "Elliptic curves"],
-        ["lec03000", "The trilogy: tutor-web, Smileycoin and Education in a Suitcase"],
-        ["lec03100", "The tutor-web premine"],
-        ["lec03200", "Splitting the coinbase: No longer just a miners fee"],
-        ["lec03400", "Staking"],
-        ["lec03500", "The tutor-web as a faucet"],
-        ["lec04000", "The command line in detail"],
-        ["lec04500", "Building a transaction on the command line"],
-        ["lec15000", "Cryptocurrency exchanges"],
-        ["lec15500", "API access to exchanges"],
-        ["lec26000", "Automation on the blockchain (stores, ATM, gambling etc)"],
-        ["lec30000", "The Bitcoin programming language"],
-        ["lec47000", "Atomic swaps"]
-    ],
-    "stage_template": [
-        {
-            "name": "stage0",
-            "title": "write and review Examples",
-            "material_tags": [{"path": 1}, "type.template", "outputtype.example"],
-            "setting_spec": {}
-        }
-    ]
-}
+[titles]
+comp = Computer Science Department
+crypto251 = The Smileycoin cryptocurrency
+0 = Cryptocurrency and the Smileycoin
+
+[lectures]
+lec00100 = Introduction to cryptocurrencies
+lec00200 = Smileycoin basics
+lec00250 = Picking up a wallet
+
+[downloads]
+lec00100 = http://tutor-web.net/comp/crypto251.0/lec00100/@@download-pdf/comp.crypto251.0.lec00100.pdf
+lec00200 = http://tutor-web.net/comp/crypto251.0/lec00200/@@download-pdf/comp.crypto251.0.lec00200.pdf
+_ = http://tutor-web.net/comp/crypto251.0/@@download-pdf/comp.crypto251.0.pdf
+
+[stage.stage0]
+title = Write and review Examples
+material_tags = type.template
+        outputtype.example
+        path.comp.crypto251.0.{lec_name}
+timeout_max = {"max": 30, "min": 15}
+timeout_min = {"max": 15, "min": 10}
+
+[stage.stage1]
+title = Write and review questions
+material_tags = type.template
+        outputtype.question
+        path.comp.crypto251.0.{lec_name}
+only_in = lec00300
+        lec01400
+        lec04000
+        lec30100
+timeout_grade = {"max": 7.5, "min": 2.5}
+timeout_max = {"max": 30, "min": 15}
+timeout_min = {"max": 15, "min": 10}
 """
+import configparser
 import json
+import os.path
 
 from sqlalchemy.sql import expression
 from sqlalchemy.orm.exc import NoResultFound
@@ -73,36 +72,54 @@ def upsert_syllabus(path, title, href, requires_group):
     return dbl
 
 
-def resolve_material_tags(stage_tmpl, db_lec):
-    out = []
+def multiline_list(s):
+    """Break up .ini multi-line strings into lists"""
+    return [l.strip() for l in s.split("\n") if l.strip()]
 
-    for t in stage_tmpl['material_tags']:
-        if isinstance(t, dict):
-            if 'path' in t:
-                out.append('path.%s.%s' % (
-                    t['path'],
-                    db_lec.path[-1],
+
+def new_tutorial_config():
+    conf = configparser.ConfigParser()
+    conf.read_string('''
+# Make sure required sections exist
+[titles]
+[requires_group]
+_  =
+[lectures]
+[downloads]
+    ''', source='defaults')
+    return conf
+
+
+def read_with_imports(conf, conf_path):
+    with open(conf_path, 'r') as f:
+        for l in f:
+            if l.startswith('# TW:BASE '):
+                read_with_imports(conf, os.path.join(
+                    os.path.dirname(conf_path),
+                    l.split()[2],
                 ))
-        else:
-            out.append(t)
-    return out
+    conf.read(conf_path)
 
 
-def lec_import(tut_struct):
+def lec_import(f):
+    tut_path = os.path.splitext(os.path.basename(f))[0]
+    tut_struct = new_tutorial_config()
+    read_with_imports(tut_struct, f)
+
     # Make sure the department & tutorial are available
-    path = Ltree(tut_struct['path'])
+    path = Ltree(tut_path)
     for i in range(len(path)):
         if i == len(path) - 1:
             upsert_syllabus(
                 path,
-                tut_struct['titles'][i],
-                tut_struct.get('href', None),
-                tut_struct.get('requires_group', None)
+                tut_struct['titles'][str(path[i])],
+                tut_struct['downloads'].get('_', None),
+                tut_struct['requires_group']['_'],
             )
         else:
             upsert_syllabus(
                 path[:i + 1],
-                tut_struct['titles'][i],
+                tut_struct['titles'][str(path[i])],
                 None,
                 None,  # Only set the requires_group permission on the course/tutorial itself
             )
@@ -113,8 +130,12 @@ def lec_import(tut_struct):
         db_lecs[s.path] = s
 
     # Add all lectures & stages
-    for lec_name, lec_title, lec_href, *_unused_ in (l + [None, None] for l in tut_struct['lectures']):
-        db_lec = upsert_syllabus(path + Ltree(lec_name), lec_title, lec_href, tut_struct.get('requires_group', None))
+    for lec_name in tut_struct['lectures'].keys():
+        lec_title = tut_struct['lectures'][lec_name]
+        lec_href = tut_struct['downloads'].get(lec_name, None)
+        lec_requires_group = tut_struct['requires_group'].get(lec_name, tut_struct['requires_group']['_'])
+
+        db_lec = upsert_syllabus(path + Ltree(lec_name), lec_title, lec_href, lec_requires_group)
         if path + Ltree(lec_name) in db_lecs:
             del db_lecs[path + Ltree(lec_name)]
 
@@ -123,29 +144,46 @@ def lec_import(tut_struct):
         for s in DBSession.query(Base.classes.stage).filter_by(syllabus=db_lec):
             db_stages[s.stage_name] = s
 
-        for stage_tmpl in tut_struct['stage_template']:
-            # De-mangle any functions in material tags
-            material_tags = resolve_material_tags(stage_tmpl, db_lec)
-            setting_spec = stage_tmpl['setting_spec'] or {}
-
-            if 'only_in' in stage_tmpl and lec_name not in stage_tmpl['only_in']:
+        for sect_name in tut_struct.sections():
+            if not sect_name.startswith('stage.'):
                 continue
+            stage_tmpl = tut_struct[sect_name]
+            if lec_name not in multiline_list(stage_tmpl.get('only_in', lec_name)):
+                continue
+            if lec_name in multiline_list(stage_tmpl.get('not_in', '')):
+                continue
+            stage_name = sect_name.replace('stage.', '')
+            stage_title = tut_struct[sect_name]['title']
 
-            if stage_tmpl['name'] in db_stages:
+            # De-mangle material tags, e.g. path.{tut_path}.{lec_name}
+            material_tags = [t.format(
+                tut_path=tut_path,
+                lec_name=lec_name,
+                stage_name=stage_name,
+            ) for t in multiline_list(stage_tmpl['material_tags'])]
+
+            # Everything else is assumed to be a setting
+            setting_spec = {}
+            for k in stage_tmpl.keys():
+                if k in set(('title', 'material_tags', 'only_in', 'not_in')):
+                    continue
+                setting_spec[k] = json.loads(stage_tmpl[k])
+
+            if stage_name in db_stages:
                 # If equivalent, do nothing
                 # TODO: Is this doing the right thing?
-                if db_stages[stage_tmpl['name']].material_tags == material_tags and \
-                   db_stages[stage_tmpl['name']].stage_setting_spec == setting_spec:
-                    if db_stages[stage_tmpl['name']].title != stage_tmpl['title']:
+                if db_stages[stage_name].material_tags == material_tags and \
+                   db_stages[stage_name].stage_setting_spec == setting_spec:
+                    if db_stages[stage_name].title != stage_title:
                         # Can just update title without needing a new version
-                        db_stages[stage_tmpl['name']].title = stage_tmpl['title']
+                        db_stages[stage_name].title = stage_title
                         DBSession.flush()
                     continue
             # Add it, let the database worry about bumping version
             DBSession.add(Base.classes.stage(
                 syllabus=db_lec,
-                stage_name=stage_tmpl['name'],
-                title=stage_tmpl['title'],
+                stage_name=stage_name,
+                title=stage_title,
                 material_tags=material_tags,
                 stage_setting_spec=setting_spec
             ))
@@ -159,21 +197,6 @@ def lec_import(tut_struct):
     DBSession.flush()
 
 
-def multiple_lec_import(data):
-    """Import a list of lectures, allowing previous lectures to define defaults"""
-    if not isinstance(data, list):
-        # Only one lecture, just import it
-        lec_import(data)
-        return
-
-    for i in range(len(data)):
-        # Lecture i should be a combination of itself and everything before it
-        merged = {}
-        for j in range(i + 1):
-            merged.update(data[j])
-        lec_import(merged)
-
-
 def script():
     import argparse
     import sys
@@ -183,7 +206,7 @@ def script():
         dict(description='Import a tutorial/lecture/stage configuration'),
         dict(
             name='infile',
-            help='JSON syllabus file(s) to import, assumes STDIN if none given',
+            help='.INI syllabus file(s) to import, assumes STDIN if none given',
             type=argparse.FileType('r'),
             nargs='*',
             default=sys.stdin),
@@ -191,4 +214,7 @@ def script():
 
     with setup_script(argparse_arguments) as env:
         for f in env['args'].infile:
-            multiple_lec_import(json.load(f))
+            if f.endswith('.ini'):
+                lec_import(f)
+            else:
+                raise ValueError("Unkown file format: %s" % f)

@@ -1,4 +1,8 @@
+import configparser
+import os.path
+import json
 import random
+import tempfile
 
 from sqlalchemy_utils import Ltree
 
@@ -14,8 +18,10 @@ class RequiresPyramid():
         self.config = testing.setUp()
         if hasattr(self, 'postgresql'):
             self.db_session = tutorweb_quizdb.initialize_dbsession(dict(url=self.postgresql.url()))
+        self.lec_import_path = tempfile.TemporaryDirectory()
 
     def tearDown(self):
+        self.lec_import_path.cleanup()
         if hasattr(self, 'db_session'):
             self.db_session.remove()
         testing.tearDown()
@@ -31,6 +37,19 @@ class RequiresPyramid():
             "sqlalchemy.echo": "false",
             "mako.directories": "tutorweb_quizdb: tutorweb_quizdb:auth/",
         }))
+
+    def lec_import(self, file_contents):
+        from tutorweb_quizdb.syllabus.add import lec_import
+
+        for name, content in file_contents.items():
+            with open(os.path.join(self.lec_import_path.name, name), 'w') as f:
+                if isinstance(content, str):
+                    f.write(content.strip())
+                elif isinstance(content, configparser.ConfigParser):
+                    content.write(f)
+                else:
+                    raise ValueError("Unexpected lecture type %s" % content)
+        lec_import(os.path.join(self.lec_import_path.name, name))  # NB: name is final item from loop
 
     def request(self, settings={}, user=None, params={}, method='GET', body=None):
         request = testing.DummyRequest(method=method)
@@ -50,22 +69,22 @@ class RequiresPyramid():
                       material_tags_fn=lambda i: [],
                       requires_group=None,
                       lec_parent='dept.tutorial'):
-        from tutorweb_quizdb.syllabus.add import lec_import
         from tutorweb_quizdb import DBSession, Base, ACTIVE_HOST
+        from tutorweb_quizdb.syllabus.add import new_tutorial_config
 
         lec_name = 'lec_%d' % random.randint(1000000, 9999999)
-        lec_import(dict(
-            path=lec_parent,
-            titles=['UT %s' % p for p in lec_parent.split('.')],
-            requires_group=requires_group,
-            lectures=[[lec_name, 'UT Lecture %s' % lec_name]],
-            stage_template=[dict(
-                name='stage%d' % i, version=0,
-                title='UT stage %s' % i,
-                material_tags=material_tags_fn(i),
-                setting_spec=stage_setting_spec_fn(i),
-            ) for i in range(total)],
-        ))
+        conf_out = new_tutorial_config()
+        conf_out['titles'] = {p:"UT %s" % p for p in lec_parent.split('.')}
+        conf_out['requires_group']['_'] = requires_group or ''
+        conf_out['lectures'][lec_name] = 'UT Lecture %s' % lec_name
+        for i in range(total):
+            stage_name = 'stage.stage%d' % i
+            conf_out.add_section(stage_name)
+            conf_out[stage_name]['title'] = 'UT stage %d' % i
+            conf_out[stage_name]['material_tags'] = "\n".join(material_tags_fn(i))
+            for k, v in stage_setting_spec_fn(i).items():
+                conf_out[stage_name][k] = json.dumps(v)
+        self.lec_import({"%s.ini" % lec_parent: conf_out})
 
         # Get the sqlalchemy objects back
         stages = (DBSession.query(Base.classes.stage)
@@ -73,6 +92,8 @@ class RequiresPyramid():
                            .filter_by(host_id=ACTIVE_HOST)
                            .filter_by(path=Ltree('%s.%s' % (lec_parent, lec_name)))
                            .all())
+        if len(stages) != total:
+            raise ValueError("Failed to import lecture, %d stages returned, not %d" % (len(stages), total))
         return stages
 
     def upgrade_stage(self, db_stage, setting_spec_updates):
