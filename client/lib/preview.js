@@ -11,9 +11,22 @@ var Hodataframe = require('hodf');
 
 var hodfs = {};
 
+// https://youmightnotneedjquery.com/#val
+function val(el) {
+    if (el.options && el.multiple) {
+        return el.options.filter(function (option) {
+            return option.selected;
+        }).map(function (option) {
+            return option.value;
+        });
+    }
+    return el.value;
+}
+
 function page_load(qs, student_dataframes) {
     var twView = new View(jQuery),
         ajaxApi = new AjaxApi(jQuery.ajax),
+        answerData,
         p;
 
     formson.update_form(document.forms.preview_select, qs);
@@ -54,6 +67,19 @@ function page_load(qs, student_dataframes) {
         // Replace placeholders with the real content
         Array.prototype.map.call(twView.jqQuiz[0].querySelectorAll('div.reveal-on-answer-placeholder'), function (el) {
             el.parentNode.replaceChild(jQuery(el).data('orig'), el);
+        });
+
+        // Mark all answers as correct / incorrect
+        answerData = data.correct || {};
+        Object.keys(answerData).map(function (k) {
+            if (Array.isArray(answerData[k])) {
+                // Find any form elements with key/value and mark as correct
+                twView.jqQuiz.find('*[name=' + k + ']').each(function () {
+                    var correct = answerData[k].indexOf(val(this)) > -1;
+                    this.classList.toggle('correct', correct);
+                    this.classList.toggle('incorrect', !correct);
+                });
+            }
         });
 
         twView.renderMath();
