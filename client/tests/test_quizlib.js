@@ -1753,6 +1753,7 @@ test('_getNewQuestion', function (t) {
     }).then(function (args) {
         aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 1, {
             data: utils.question_dict(["ut:question-a"]),
+            stats: { initial_answered: 0, initial_correct: 0, chosen: 0, correct: 0, uri: "ut:question-a" },
         });
         return promise;
     }).then(function (args) {
@@ -1777,7 +1778,7 @@ test('_getNewQuestion', function (t) {
         aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 3, {data: {"ut:question-a": {
             error: "Erk",  // NB: An error causes a retry loop, just as missing questions do
             data: {"ut:question-a": utils.utQuestions["ut:question0"]}
-        }}});
+        }}, stats: { initial_answered: 0, initial_correct: 0, chosen: 0, correct: 0, uri: "ut:question-a"} });
         return aa.waitForQueue(["GET ut:lecture0:all-questions&id=ut%3Aquestion-a 4"]);
     }).then(function (args) {
         aa.setResponse('GET ut:lecture0:all-questions&id=ut%3Aquestion-a', 4, new Error("Go away"));

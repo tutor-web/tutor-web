@@ -560,7 +560,9 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
 
                 // Put all-questions into what should be fake Ajax request
                 // NB: We wrap questions in {data: } here to match server-side response
-                self.ajaxApi.injectCache(l.material_uri, {data: questions});
+                self.ajaxApi.injectCache(l.material_uri, {data: questions, stats: Object.keys(questions).map(function (uri) {
+                    return { initial_answered: 0, initial_correct: 0, chosen: 0, correct: 0, uri: uri };
+                })});
             });
 
             subscriptions.children.push({
