@@ -2252,7 +2252,7 @@ test('_getQuestionData:reload-on-corruption', function (t) {
 
     }).then(function () {
         // Corrupt _lastFetched, fetch a new question, which should trigger re-download
-        quiz._lastFetched.all_material = "camelfart";
+        quiz._lastFetched.all_material = {uri: 'ut:lecture0:all-questions'};
 
         return aa.callAndRespond(quiz.getNewQuestion({practice: false}), [['GET ut:lecture0:all-questions', {
             data: {

@@ -355,18 +355,22 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
             throw new Error("Missing material_uri");
         }
 
-        if (cachedOkay && material_id && self._lastFetched.material_id === material_id) {
+        if (cachedOkay && material_id
+                       && self._lastFetched.material_data
+                       && self._lastFetched.material_data.uri === material_id) {
             // Pull out of in-memory cache
             return Promise.resolve(self._lastFetched.material_data);
         }
 
         // Return in-memory all-question data if it's for curLecture, if not ask Cache API
-        if (self._lastFetched.material_uri === curLecture.material_uri) {
+        if (self._lastFetched.all_material && self._lastFetched.all_material.uri === curLecture.material_uri) {
             p = Promise.resolve(self._lastFetched.all_material);
         } else {
             p = ajaxApi.getCachedJson(curLecture.material_uri, { timeout: 60 * 1000 }).then(function (data) {
-                self._lastFetched.material_uri = curLecture.material_uri;
                 self._lastFetched.all_material = data;
+                if (!self._lastFetched.all_material.uri) {
+                    self._lastFetched.all_material.uri = curLecture.material_uri;
+                }
                 return data;
             });
         }
@@ -380,7 +384,6 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
             console.warn("Cache corrupt, re-downloading " + curLecture.material_uri);
             // Ditch any cached entries
             return ajaxApi.removeUnusedCache([curLecture.material_uri], true).then(function () {
-                self._lastFetched.material_uri = null;
                 self._lastFetched.all_material = null;
 
                 // Call ourself up to pre-warming point, then use that to carry on
@@ -401,10 +404,6 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
             // Request the individual question
             return self.ajaxApi.getJson(curLecture.material_uri + '&id=' + encodeURIComponent(material_id)).then(function (data) {
                 var qn = data.data[material_id];
-                // Stash question for using later
-                // NB: Not just for efficiency, ensures answer compares same UG question
-                self._lastFetched.material_id = material_id;
-                self._lastFetched.material_data = qn;
                 return qn;
             });
         }).then(function (qn) {
@@ -416,6 +415,9 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
                 // Make sure we have a "uri" if not added server-side
                 qn.uri = material_id;
             }
+            // Stash question for using later
+            // NB: Not just for efficiency, ensures answer compares same UG question
+            self._lastFetched.material_data = qn;
             return qn;
         });
     };
