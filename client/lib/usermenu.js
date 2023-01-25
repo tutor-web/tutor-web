@@ -22,7 +22,6 @@ var parse_qs = require('../lib/parse_qs.js').parse_qs;
 module.exports = function UserMenu(jqUserMenu, quiz) {
     "use strict";
     var self = this,
-        curUser = "",
         jqMenuLink = jqUserMenu.children('a'),
         jqMenuRoot = jqUserMenu.children('ul'),
         jqItemTemplate = jqMenuRoot.children('li').detach();
@@ -155,7 +154,6 @@ module.exports = function UserMenu(jqUserMenu, quiz) {
                     );
                 }
 
-                curUser = user.username;
                 renderMenu(menu);
                 return 'online';
             });
@@ -163,48 +161,20 @@ module.exports = function UserMenu(jqUserMenu, quiz) {
         'online': function () {
             return Promise.resolve();
         },
-        'uptodate': function () {
-            var curUrl = parse_qs(window.location);
-
+        'uptodate': function (newState) {
             renderMenu({
                 text: "Saving your work...",
                 action: null,
             });
 
             // Do sync call
-            return quiz.syncLecture(null, false).then(function (promises) {
-                return promises ? Promise.all(promises) : true;
-            }).then(function () {
-                renderMenu({
-                    text: curUser,
-                    tooltip: "All your answers have been saved",
-                    action: [
-                        { text: "Sync with server", action: "menustate:sync-force" },
-                        { text: "Get some help on this lecture", action: "popup:chat.html#!lecUri=" + encodeURIComponent(curUrl.lecUri) },
-                        { text: "Redeem your smileycoins", action: "twstate:go-coin" },
-                    ],
-                });
+            return quiz.syncLecture(null, { syncForce: newState === 'sync-force' }).then(function () {
+                return 'connect';
             });
         },
         'sync-force': function () {
-            renderMenu({
-                text: "Saving your work...",
-                action: null,
-            });
-
-            // Do sync call
-            return quiz.syncLecture(null, true).then(function (promises) {
-                return promises ? Promise.all(promises) : true;
-            }).then(function () {
-                renderMenu({
-                    text: curUser,
-                    tooltip: "All your answers have been saved",
-                    action: [
-                        { text: "Sync with server", action: "menustate:sync-force" },
-                    ],
-                });
-                return 'uptodate';
-            });
+            // Same, but force the sync
+            return this.transitions.uptodate('sync-force');
         },
         'app-reload': function () {
             renderMenu({
