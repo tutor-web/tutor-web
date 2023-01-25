@@ -515,6 +515,12 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
         });
     };
 
+    /** Empty any local storage */
+    this.clearStorage = function () {
+        rawLocalStorage.clear();
+        ajaxApi.removeUnusedCache([]);
+    };
+
     /** Go through subscriptions, remove any lectures that don't have an owner */
     this.removeUnusedObjects = function () {
         var self = this,

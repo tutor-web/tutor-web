@@ -223,7 +223,7 @@ module.exports = function View($) {
 
     this.states['logout-force'] = function () {
         if (window.confirm("Any answers that you have given since the last sync may be lost. Are you sure?")) {
-            localStorage.clear();
+            twView.quiz.clearStorage();
             window.location.href = '/auth/logout';
         }
     };
