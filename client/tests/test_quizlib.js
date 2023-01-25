@@ -82,11 +82,16 @@ function MockAjaxApi() {
     };
 
     this.removeUnusedCache = function (expected_uris) {
-        Object.keys(this.cached).forEach(function (uri) {
-            if (!expected_uris.has(uri)) {
-                delete this.cached[uri];
-            }
-        }.bind(this));
+        // NB: We don't need to convert uris, but we do need to Set-ify the input
+        var expected_full_uris = new Set(expected_uris);
+
+        return Promise.all(Object.keys(this.cached).filter(function (uri) {
+            return !expected_full_uris.has(uri);
+        }.bind(this)).map(function (uri) {
+            var out = this.cached.hasOwnProperty(uri);
+            delete this.cached[uri];
+            return out;
+        }.bind(this)));
     };
 
     this.ajax = function (call) {
