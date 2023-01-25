@@ -115,7 +115,7 @@ module.exports = function AjaxApi(jqAjax) {
     };
 
     /** Remove anything from the cache not in the set/list */
-    this.removeUnusedCache = function (expected_uris) {
+    this.removeUnusedCache = function (expected_uris, invert) {
         var expected_full_uris = new Set();
 
         if (!window.caches) {
@@ -130,7 +130,7 @@ module.exports = function AjaxApi(jqAjax) {
         return window.caches.open('ajaxapi-v1').then(function (cache) {
             return cache.keys().then(function (keys) {
                 return Promise.all(keys.filter(function (request) {
-                    return !expected_full_uris.has(request.url);
+                    return invert ? expected_full_uris.has(request.url) : !expected_full_uris.has(request.url);
                 }.bind(this)).map(function (request) {
                     return cache.delete(request);
                 }.bind(this)));
