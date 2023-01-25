@@ -360,7 +360,7 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
             return Promise.resolve(self._lastFetched.material_data);
         }
 
-        // Get all-question data, keep in memory
+        // Return in-memory all-question data if it's for curLecture, if not ask Cache API
         if (self._lastFetched.material_uri === curLecture.material_uri) {
             p = Promise.resolve(self._lastFetched.all_material);
         } else {
@@ -370,6 +370,23 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
                 return data;
             });
         }
+
+        // Make sure structure is semi-sane, if not then re-request a fresh copy
+        p = p.then(function (all_qns) {
+            if (all_qns && all_qns.data && all_qns.stats) {
+                return all_qns;
+            }
+
+            console.warn("Cache corrupt, re-downloading " + curLecture.material_uri);
+            // Ditch any cached entries
+            return ajaxApi.removeUnusedCache([curLecture.material_uri], true).then(function () {
+                self._lastFetched.material_uri = null;
+                self._lastFetched.all_material = null;
+
+                // Call ourself up to pre-warming point, then use that to carry on
+                return self._getQuestionData(curLecture, undefined);
+            });
+        });
 
         if (material_id === undefined) {
             // Pre-warming material cache, don't need to do anything more

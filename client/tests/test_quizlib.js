@@ -81,12 +81,12 @@ function MockAjaxApi() {
         return new Set(Object.keys(this.cached));
     };
 
-    this.removeUnusedCache = function (expected_uris) {
+    this.removeUnusedCache = function (expected_uris, invert) {
         // NB: We don't need to convert uris, but we do need to Set-ify the input
         var expected_full_uris = new Set(expected_uris);
 
         return Promise.all(Object.keys(this.cached).filter(function (uri) {
-            return !expected_full_uris.has(uri);
+            return invert ? expected_full_uris.has(uri) : !expected_full_uris.has(uri);
         }.bind(this)).map(function (uri) {
             var out = this.cached.hasOwnProperty(uri);
             delete this.cached[uri];
@@ -177,6 +177,19 @@ function MockAjaxApi() {
         this.responses[method + ' ' + promiseCount] = ret;
         return ret;
     };
+
+    this.callAndRespond = function (p, responses) {
+        var base_count = this.count;
+
+        return this.waitForQueue(responses.map(function (r, i) {
+            return r[0] + ' ' + (base_count + i);
+        }.bind(this))).then(function (aa_resp) {
+            responses.forEach(function (r, i) {
+                this.setResponse(r[0], (base_count + i), r[1]);
+            }.bind(this));
+            return p;
+        }.bind(this));
+    }.bind(this);
 }
 
 function getQn(quiz, practiceMode) {
@@ -2195,6 +2208,74 @@ test('_updateUserDetails', function (t) {
 
     // Stop it and tidy up
     }).then(function (args) {
+        t.end();
+    }).catch(function (err) {
+        console.log(err.stack);
+        t.fail(err);
+        t.end();
+    });
+});
+
+test('_getQuestionData:reload-on-corruption', function (t) {
+    var ls = new MockLocalStorage(),
+        aa = new MockAjaxApi(),
+        quiz = new Quiz(ls, aa),
+        utils = test_utils();
+
+    return insertTutorial(quiz, 'ut:tutorial0', 'UT tutorial', [
+        {
+            "answerQueue": [],
+            "questions": [
+                {"uri": "ut:question0", "chosen": 20, "correct": 100},
+                {"uri": "ut:question1", "chosen": 40, "correct": 100},
+                {"uri": "ut:question2", "chosen": 40, "correct": 100},
+            ],
+            "settings": { hist_sel: '0', timeout_std: "2", timeout_min: 3, timeout_max: 10, timeout_grade: 5 },
+            "uri": "ut:lecture0",
+            "material_uri": "ut:lecture0:all-questions",
+        },
+        {
+            "answerQueue": [],
+            "questions": [
+                {"uri": "ut:question-a", "chosen": 20, "correct": 100, "online-only": "true"},
+            ],
+            "settings": { hist_sel: '0', timeout_std: "2", timeout_min: 3, timeout_max: 10, timeout_grade: 5 },
+            "uri": "ut:lecture-online",
+            "material_uri": "ut:lecture0:all-questions",
+        },
+    ], utils.utQuestions).then(function () {
+        return quiz.setCurrentLecture({'lecUri': 'ut:lecture0'});
+    }).then(function () {
+        return quiz.getNewQuestion({practice: false}).then(function (args) {
+            return quiz.setQuestionAnswer([{name: "answer", value: 0}]);
+        });
+
+    }).then(function () {
+        // Corrupt _lastFetched, fetch a new question, which should trigger re-download
+        quiz._lastFetched.all_material = "camelfart";
+
+        return aa.callAndRespond(quiz.getNewQuestion({practice: false}), [['GET ut:lecture0:all-questions', {
+            data: {
+                "ut:question0" : Object.assign({}, utils.utQuestions['ut:question0'], {text: 'Replaced question'}),
+                "ut:question1" : Object.assign({}, utils.utQuestions['ut:question1'], {text: 'Replaced question'}),
+                "ut:question2" : Object.assign({}, utils.utQuestions['ut:question2'], {text: 'Replaced question'}),
+            },
+            stats: {},
+        }]]);
+
+    }).then(function (args) {
+        // Finished, got a question from latest dump
+        t.deepEqual(args.qn.text, 'Replaced question');
+        return quiz.setQuestionAnswer([{name: "answer", value: 0}]);
+
+    }).then(function (args) {
+        // Can do it again without re-downloading
+        return quiz.getNewQuestion({practice: false});
+    }).then(function (args) {
+        t.deepEqual(args.qn.text, 'Replaced question');
+
+    }).then(function (args) {
+        tk.reset();
         t.end();
     }).catch(function (err) {
         console.log(err.stack);
