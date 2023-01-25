@@ -280,7 +280,14 @@ module.exports = function UserMenu(jqUserMenu, quiz) {
     };
     this.updateState('initial');
 
-    if (navigator.serviceWorker) {
+    if (!window.actuallyenableserviceworker) {
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            registrations.forEach(function (r) {
+                r.unregister();
+            });
+        });
+        window.setTimeout(function () { this.updateState('connect'); }.bind(this), 1);
+    } else if (navigator.serviceWorker) {
         navigator.serviceWorker.register('/serviceworker.js', {
             scope: '/',
         }).then(function (registration) {
@@ -333,7 +340,7 @@ module.exports = function UserMenu(jqUserMenu, quiz) {
     } else {
         // NB: Service workers are disabled in firefox private browsing
         console.warn('Service workers are not supported.');
-        this.updateState('connect');
+        window.setTimeout(function () { this.updateState('connect'); }.bind(this), 1);
     }
 
     window.addEventListener("beforeunload", function (e) {
