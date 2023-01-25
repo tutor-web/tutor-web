@@ -321,7 +321,7 @@ QuizView.prototype = new View(jQuery);
         return quiz.setQuestionAnswer(curState === 'qn-skip' ? {} : formson.form_to_object(twView.jqQuiz.children('form')[0])).then(function (args) {
             twView.renderAnswer(args.a, args.answerData, args.qn);
             quiz.lectureGradeSummary(twView.curUrl.lecUri).then(twView.renderGradeSummary.bind(twView));
-            twMenu.syncAttempt(false);
+            twMenu.syncAttempt();
 
             if (args.qn.tags.indexOf("review.mandatory") > -1) {
                 return 'qn-startreview';
@@ -350,7 +350,7 @@ QuizView.prototype = new View(jQuery);
 
     twView.states['qn-submitreview'] = function (curState) {
         return quiz.setQuestionReview(formson.form_to_object(twView.jqQuiz.children('form')[1])).then(function (args) {
-            twMenu.syncAttempt(false);
+            twMenu.syncAttempt();
 
             twView.updateActions(postQuestionActions(args).filter(function (s) { return s !== 'qn-startreview'; }));
         });
