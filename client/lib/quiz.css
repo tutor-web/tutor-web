@@ -253,9 +253,15 @@ div#tw-actions a.disabled {
     border-radius: 3px;
     padding: 1rem;
     /* Same as alert-success */
-    border: 1px solid #d6e9c6;;
+    border: 1px solid #d6e9c6;
     color: #468847;
     background-color: #dff0d8;
+}
+#tw-quiz > .incorrect .explanation {
+    /* Same as alert */
+    border: 1px solid #fbeed5;
+    background-color: #fcf8e3;
+    color: #c09853;
 }
 
 #tw-quiz textarea {
