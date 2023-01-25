@@ -111,7 +111,10 @@ function MockAjaxApi() {
                         setTimeout(tick, timerTick);
                         return;
                     }
-                    r = new Error("MockAjaxApi Timeout: " + promiseId + ' [' + Object.keys(self.responses) + ']');
+                    r = new Error("MockAjaxApi Timeout: " + promiseId + ' [' + Object.keys(self.responses).filter(function (x) {
+                        // Undefined promises are just a flag that we're blocking, not a valid response
+                        return self.responses[x] !== undefined;
+                    }) + ']');
                 }
 
                 delete self.responses[promiseId];
@@ -163,6 +166,9 @@ function MockAjaxApi() {
     };
 
     this.setResponse = function (method, promiseCount, ret) {
+        if (ret === undefined) {
+            throw new Error("undefined responses are not supported");
+        }
         this.responses[method + ' ' + promiseCount] = ret;
         return ret;
     };
