@@ -125,11 +125,13 @@ module.exports = function IAA() {
             } else if (Array.isArray(qn_correct[k]) && Number.isInteger(qn_correct[k][0])) {
                 // Number array case: Check answer has correct number
                 if (qn_correct[k].indexOf(parseInt(a.student_answer[k], 10)) === -1) {
+                    a.student_answer['_tmp_int_' + k] = qn_correct[k]; // TODO: Remove again
                     correct = false;
                 }
             } else if (Array.isArray(qn_correct[k])) {
                 // Default array case: Check answer contains correct string
                 if (qn_correct[k].indexOf(a.student_answer[k]) === -1) {
+                    a.student_answer['_tmp_' + k] = qn_correct[k]; // TODO: Remove again
                     correct = false;
                 }
             }
