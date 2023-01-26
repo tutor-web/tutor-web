@@ -250,11 +250,13 @@ module.exports = function UserMenu(jqUserMenu, quiz) {
     this.updateState('initial');
 
     if (!window.actuallyenableserviceworker) {
-        navigator.serviceWorker.getRegistrations().then(function (registrations) {
-            registrations.forEach(function (r) {
-                r.unregister();
+        if (navigator.serviceWorker) {
+            navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                registrations.forEach(function (r) {
+                    r.unregister();
+                });
             });
-        });
+        }
         window.setTimeout(function () { this.updateState('connect'); }.bind(this), 1);
     } else if (navigator.serviceWorker) {
         navigator.serviceWorker.register('/serviceworker.js', {
