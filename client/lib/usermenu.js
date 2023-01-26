@@ -54,7 +54,6 @@ module.exports = function UserMenu(jqUserMenu, quiz) {
                 actionType = 'none';
             } else if (typeof state.action === 'string') {
                 actionType = state.action.slice(0, state.action.indexOf(':'));
-                state.action = state.action.slice(state.action.indexOf(':') + 1);
             } else if (typeof state.action === 'object' && state.action.constructor === Array) {
                 actionType = 'dropdown';
             }
@@ -81,7 +80,7 @@ module.exports = function UserMenu(jqUserMenu, quiz) {
             // State change for tutor-web
             if (actionType === 'popup') {
                 jqLink.attr('href', state.action.replace(/^popup:/, ''));
-                jqLink.attr('target', state.action);
+                jqLink.attr('target', state.action.replace(/^popup:/, ''));
             }
 
             // Dropdown of sub-items
