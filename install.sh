@@ -113,6 +113,7 @@ if [ -e "${SERVER_CERT_PATH}" ]; then
     # Generate full-blown SSL config
     cat <<EOF >> /etc/nginx/sites-available/${PROJECT_NAME}
 server {
+    listen [::]:80;
     listen      80;
     server_name ${SERVER_NAME};
 
