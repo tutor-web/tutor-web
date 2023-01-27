@@ -366,18 +366,16 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
         if (self._lastFetched.all_material && self._lastFetched.all_material.uri === curLecture.material_uri) {
             p = Promise.resolve(self._lastFetched.all_material);
         } else {
-            p = ajaxApi.getCachedJson(curLecture.material_uri, { timeout: 60 * 1000 }).then(function (data) {
-                self._lastFetched.all_material = data;
-                if (!self._lastFetched.all_material.uri) {
-                    self._lastFetched.all_material.uri = curLecture.material_uri;
-                }
-                return data;
-            });
+            p = ajaxApi.getCachedJson(curLecture.material_uri, { timeout: 60 * 1000 });
         }
 
         // Make sure structure is semi-sane, if not then re-request a fresh copy
         p = p.then(function (all_qns) {
             if (all_qns && all_qns.data && all_qns.stats) {
+                if (!all_qns.uri) {
+                    all_qns.uri = curLecture.material_uri;
+                }
+                self._lastFetched.all_material = all_qns;
                 return all_qns;
             }
 
