@@ -1114,7 +1114,6 @@ test('markAnswer', function (t) {
     t.deepEqual(a, {
         student_answer: {
             correct: "no",
-            _tmp_correct: ['yes'],  // TODO:
             practice: true,
             practice_correct: false,
         },
