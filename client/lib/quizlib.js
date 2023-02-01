@@ -194,11 +194,14 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
 
     /** Form a promise-chain that fetches the lecture at the start and sets it at the end */
     this._withLecture = function (lecUri, work, missingOkay) {
-        var self = this, lec;
+        var self = this, lec, p;
 
-        return self._getLecture(lecUri, missingOkay).then(function (lecture) {
+        // Serialise access by chaining to any existing attempt
+        p = (self._withLectureLock || Promise.resolve()).then(function () {
+            return self._getLecture(lecUri, missingOkay);
+        }).then(function (lecture) {
             lec = lecture;  // Store it in our function scope
-            return Promise.resolve(lecture);
+            return lecture;
         }).then(work).then(function (rv) {
             var uri = lec.uri;
 
@@ -206,6 +209,16 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
             self.ls.setItem(uri, lec);
             return rv;
         });
+
+        self._withLectureLock = p.catch(function () {
+            // Don't bubble errors to next _withLecture usage
+            return undefined;
+        }).then(function () {
+            // Don't store result unnecessarily
+            return undefined;
+        });
+
+        return p;
     };
 
     /** Set the current lecture */
