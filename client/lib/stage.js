@@ -29,7 +29,8 @@ function QuizView($) {
     this.renderNewQuestion = function (qn, a, actionsOnChange) {
         var self = this, jqForm = el('form');
 
-        jqForm.append(qn.content);
+        // TODO: Slip in uri here for setQuestionAnswer to inspect
+        jqForm.append(qn.content + '<input type="hidden" name="uri" value="' + qn.uri + '">');
 
         jqForm.on('change', function () {
             self.updateActions(actionsOnChange);

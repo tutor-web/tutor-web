@@ -445,6 +445,11 @@ module.exports = function Quiz(rawLocalStorage, ajaxApi) {
             Object.keys(formData).map(function (k) { a.student_answer[k] = formData[k]; });
             a.synced = false;
 
+            if (a.student_answer.uri && a.student_answer.uri !== a.uri) {
+                // The hidden uri field inserted by stage.js:renderNewQuestion doesn't match
+                throw new Error("Corrupt state, reload to continue");
+            }
+
             // Get question data and mark
             return self._getQuestionData(curLecture, a.uri, true).then(function (qn) {
                 var answerData = !qn.hasOwnProperty('correct') ? {}
