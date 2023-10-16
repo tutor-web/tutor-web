@@ -232,15 +232,13 @@ def sync_answer_queue(alloc, in_queue, time_offset):
             )):
         stage_ug_reviews[answer_id] = ug_reviews
 
-    # First pass, fill in any missing time_offset fields
+    # Ignore any unfinished items in queue
     for a in in_queue[:]:
-        # If not complete, ignore it
         if not a.get('time_end', 0):
             in_queue.remove(a)
-        if a.get('time_offset', None) is None:
-            a['time_offset'] = time_offset
-    # Re-sort based on any additional time_offsets
-    in_queue.sort(key=lambda a: (a['time_end'], a['time_offset']))
+
+    # Re-sort based on time
+    in_queue.sort(key=lambda a: (a['time_end'], a.get('time_offset', time_offset)))
 
     db_i = 0
     in_i = 0
@@ -261,8 +259,6 @@ def sync_answer_queue(alloc, in_queue, time_offset):
         else:
             # Find smallest of DB/incoming entries
             cmp = in_queue[in_i]['time_end'] - datetime_to_timestamp(db_queue[db_i].time_end)
-            if cmp == 0:
-                cmp = in_queue[in_i]['time_offset'] - db_queue[db_i].time_offset
 
         if cmp == 0:
             # Matching items, update any review

@@ -189,13 +189,14 @@ question <- function(permutation, data_frames) { return(list(content = '', corre
         ])
         self.assertEqual(additions, 0)
 
-        # Can add items with differing time_offsets
+        # time_offset stored, but not used to differentiate questions
         (out, additions) = sync_answer_queue(alloc, [
-            dict(client_id='01', uri='example2.q.R:1:1', time_start=1000, time_end=1010, correct=True, grade_after=0.1, student_answer=dict(answer="late"), review=None),
+            dict(client_id='01', uri='example2.q.R:1:1', time_start=1000, time_end=1010, correct=True, grade_after=0.1, student_answer=dict(answer="ignored"), review=None),
+            dict(client_id='01', uri='example2.q.R:1:1', time_start=1000, time_end=1011, correct=True, grade_after=0.1, student_answer=dict(answer="late"), review=None),
         ], 300)
         self.assertEqual(out, [
             aq_dict(uri='example1.q.R:1:4', time_start=1000, time_end=1010, time_offset=0, correct=True, grade_after=0.1, student_answer=dict(answer="2"), review=dict(hard="yes")),
-            aq_dict(uri='example2.q.R:1:1', time_start=1000, time_end=1010, time_offset=300, correct=True, grade_after=0.1, student_answer=dict(answer="late")),
+            aq_dict(uri='example2.q.R:1:1', time_start=1000, time_end=1011, time_offset=300, correct=True, grade_after=0.1, student_answer=dict(answer="late")),
             aq_dict(uri='example1.q.R:1:5', time_start=1010, time_end=1020, time_offset=0, correct=True, grade_after=0.1, student_answer=dict(answer="2")),
         ])
         self.assertEqual(additions, 1)
@@ -210,7 +211,7 @@ question <- function(permutation, data_frames) { return(list(content = '', corre
         self.assertEqual(out, [
             aq_dict(uri='example1.q.R:1:6', time_start=1000, time_end=1005, time_offset=0, correct=True, grade_after=0.2, student_answer=dict(answer="3")),
             aq_dict(uri='example1.q.R:1:4', time_start=1000, time_end=1010, time_offset=0, correct=True, grade_after=0.1, student_answer=dict(answer="2"), review=dict(hard="yes")),
-            aq_dict(uri='example2.q.R:1:1', time_start=1000, time_end=1010, time_offset=300, correct=True, grade_after=0.1, student_answer=dict(answer="late")),
+            aq_dict(uri='example2.q.R:1:1', time_start=1000, time_end=1011, time_offset=300, correct=True, grade_after=0.1, student_answer=dict(answer="late")),
             aq_dict(uri='example1.q.R:1:7', time_start=1010, time_end=1015, time_offset=0, correct=True, grade_after=0.2, student_answer=dict(answer="3")),
             aq_dict(uri='example1.q.R:1:5', time_start=1010, time_end=1020, time_offset=0, correct=True, grade_after=0.1, student_answer=dict(answer="2")),
             aq_dict(uri='example1.q.R:1:8', time_start=1020, time_end=1025, time_offset=0, correct=True, grade_after=0.2, student_answer=dict(answer="3")),
@@ -503,7 +504,7 @@ question <- function(permutation, data_frames) { return(list(content = 'parp', c
         self.assertEqual(out, [
             aq_dict(uri='example1.q.R:1:6', time_start=1000, time_end=1005, time_offset=0, correct=True, grade_after=0.2, student_answer=dict(answer="3")),
             aq_dict(uri='example1.q.R:1:4', time_start=1000, time_end=1010, time_offset=0, correct=True, grade_after=0.1, student_answer=dict(answer="2"), review=dict(hard="yes")),
-            aq_dict(uri='example2.q.R:1:1', time_start=1000, time_end=1010, time_offset=300, correct=True, grade_after=0.1, student_answer=dict(answer="late")),
+            aq_dict(uri='example2.q.R:1:1', time_start=1000, time_end=1011, time_offset=300, correct=True, grade_after=0.1, student_answer=dict(answer="late")),
             aq_dict(uri='example1.q.R:1:7', time_start=1010, time_end=1015, time_offset=0, correct=True, grade_after=0.2, student_answer=dict(answer="3")),
             aq_dict(uri='example1.q.R:1:5', time_start=1010, time_end=1020, time_offset=0, correct=True, grade_after=0.1, student_answer=dict(answer="2")),
             aq_dict(uri='example1.q.R:1:8', time_start=1020, time_end=1025, time_offset=0, correct=True, grade_after=0.2, student_answer=dict(answer="3")),
@@ -674,7 +675,7 @@ question <- function(permutation, data_frames) { return(list(content = 'parp', c
             ['lecture', 'stage', 'stage version', 'student', 'correct', 'grade', 'time'],
             (str(self.db_stages[0].syllabus.path), 'stage0', 1, 'user0', True, Decimal('0.200'), timestamp_to_datetime(1005)),
             (str(self.db_stages[0].syllabus.path), 'stage0', 1, 'user0', True, Decimal('0.100'), timestamp_to_datetime(1010)),
-            (str(self.db_stages[0].syllabus.path), 'stage0', 1, 'user0', True, Decimal('0.100'), timestamp_to_datetime(1010)),
+            (str(self.db_stages[0].syllabus.path), 'stage0', 1, 'user0', True, Decimal('0.100'), timestamp_to_datetime(1011)),
             (str(self.db_stages[0].syllabus.path), 'stage0', 1, 'user0', True, Decimal('0.200'), timestamp_to_datetime(1015)),
             (str(self.db_stages[0].syllabus.path), 'stage0', 1, 'user0', True, Decimal('0.100'), timestamp_to_datetime(1020)),
             (str(self.db_stages[0].syllabus.path), 'stage0', 1, 'user0', True, Decimal('0.200'), timestamp_to_datetime(1025)),
