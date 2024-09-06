@@ -11,6 +11,7 @@ var view_extensions = [
 ];
 var AjaxApi = require('./ajaxapi.js');
 var isQuotaExceededError = require('./ls_utils.js').isQuotaExceededError;
+var Quiz = require('lib/quizlib.js');
 
 /**
   * View class for all pages
@@ -222,8 +223,11 @@ module.exports = function View($) {
     };
 
     this.states['logout-force'] = function () {
+        // NB: twView.quiz might not be defined yet, dunno why. Bodge instead.
+        var quiz = twView.quiz || new Quiz(localStorage, new AjaxApi($.ajax));
+
         if (window.confirm("Any answers that you have given since the last sync may be lost. Are you sure?")) {
-            twView.quiz.clearStorage();
+            quiz.clearStorage();
             window.location.href = '/auth/logout';
         }
     };
