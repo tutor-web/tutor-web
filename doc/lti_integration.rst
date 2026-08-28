@@ -13,20 +13,22 @@ You will need a **consumer_key** and **shared_secret** setup in tutor-web
 
 If you have enough privileges you can add a new app to canvas, select the following options:
 
-1. Configuration type: "By URL"
-2. Name: ``Tutor-web``
-3. Consumer key: **consumer_key**
-4. Shared Secret: **shared_secret**
-5. Config URL: ``https://beta.tutor-web.net/lti-tool-config.xml``
+1. LTI version: ``1.1``
+2. Configuration type: "By URL"
+3. Name: ``Tutor-web``
+4. Consumer key: **consumer_key**
+5. Shared Secret: **shared_secret**
+6. Config URL: ``https://beta.tutor-web.net/lti-tool-config.xml``
 
 If "By URL" isn't an option, or you need to edit this one for whatever
 reason, then change the following fields.
 
-1) Consumer Key: **consumer_key**
-2) Shared Secret: **shared_secret**
-3) Launch URL: ``https://beta.tutor-web.net/``
-4) Domain: ``beta.tutor-web.net``
-5) Privacy: ``Public``
+1. LTI version: ``1.1``
+2. Consumer Key: **consumer_key**
+3. Shared Secret: **shared_secret**
+4. Launch URL: ``https://beta.tutor-web.net/``
+5. Domain: ``beta.tutor-web.net``
+6. Privacy: ``Public``
 
 Adding as an assignment/module
 ==============================
